@@ -1,5 +1,5 @@
 // FILE: src/main.tsx
-// AGGIORNATO: Ora supporta SOLO In-App Wallets, con il login telefonico disabilitato.
+// Corretto per risolvere l'errore di configurazione di inAppWallet
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -7,7 +7,7 @@ import App from "./App";
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import "./index.css";
 
-// Importiamo SOLO l'opzione di wallet che vogliamo supportare
+// Importiamo le opzioni di wallet che vogliamo supportare
 import { inAppWallet } from "@thirdweb-dev/react";
 
 const container = document.getElementById("root");
@@ -17,15 +17,12 @@ root.render(
   <React.StrictMode>
     <ThirdwebProvider
       activeChain="polygon"
-      clientId="e40dfd747fabedf48c5837fb79caf2eb" // Il tuo Client ID
+      clientId="e40dfd747fabedf48c5837fb79caf2eb"
       
-      // MODIFICATO: Abbiamo aggiunto le opzioni per disabilitare il telefono.
+      // Corretto: La configurazione avanzata va fatta sulla dashboard.
+      // Qui specifichiamo solo quale tipo di wallet supportare.
       supportedWallets={[
-        inAppWallet({
-          options: {
-            phone: false, // Disabilita l'opzione di login con numero di telefono
-          }
-        }),
+        inAppWallet(),
       ]}
     >
       <App />
