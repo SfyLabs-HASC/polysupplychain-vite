@@ -1,0 +1,137 @@
+/* FILE: src/App.css */
+/* Stili per la nuova interfaccia PolySupplyChain */
+
+/* Importiamo un font pulito da Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Reset di base e stile del corpo */
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #0a0a0a; /* Sfondo molto scuro */
+  color: #e0e0e0; /* Testo quasi bianco */
+}
+
+/* Contenitore principale dell'app con layout a due colonne */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* --- Sidebar a Sinistra --- */
+.sidebar {
+  width: 280px;
+  background-color: #121212; /* Sfondo leggermente più chiaro */
+  padding: 2rem;
+  border-right: 1px solid #27272a; /* Bordo sottile di separazione */
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  margin-bottom: 3rem;
+}
+
+.sidebar-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.user-info {
+  margin-top: auto; /* Spinge questa sezione in fondo alla sidebar */
+  font-size: 0.9rem;
+}
+
+.user-info p {
+  margin: 0.5rem 0;
+  word-wrap: break-word; /* Va a capo se l'indirizzo è lungo */
+}
+
+.user-info strong {
+  color: #a0a0a0;
+}
+
+
+/* --- Area Principale a Destra --- */
+.main-content {
+  flex-grow: 1; /* Occupa tutto lo spazio rimanente */
+  padding: 2rem 4rem;
+}
+
+.header {
+  display: flex;
+  justify-content: flex-end; /* Allinea il pulsante del wallet a destra */
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 2rem;
+}
+
+/* --- Stile per le Card e i Form --- */
+.card {
+  background-color: #18181b; /* Sfondo delle card */
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #27272a;
+}
+
+.card h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #a0a0a0;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 1rem;
+  box-sizing: border-box; /* Assicura che il padding non cambi la larghezza */
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #4f46e5; /* Blu/viola per il focus */
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Stile per il Web3Button */
+.web3-button {
+  background-color: #4f46e5 !important; /* Colore principale del pulsante */
+  color: white !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 8px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s !important;
+}
+
+.web3-button:hover {
+  background-color: #4338ca !important; /* Colore al passaggio del mouse */
+}
