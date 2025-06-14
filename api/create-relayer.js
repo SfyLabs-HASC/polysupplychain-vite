@@ -1,5 +1,5 @@
 // FILE: api/create-relayer.js
-// VERSIONE DEFINITIVA: Corretto l'URL dell'endpoint per includere il versionamento /v1/.
+// VERSIONE DEFINITIVA: Usa la SECRET KEY per l'autenticazione, come richiesto dall'errore.
 
 import admin from 'firebase-admin';
 
@@ -28,33 +28,36 @@ export default async (req, res) => {
   try {
     const { companyId, companyStatus } = req.body;
     if (!companyId) {
-        return res.status(400).json({ error: "ID Azienda mancante." });
+      return res.status(400).json({ error: "ID Azienda mancante." });
     }
 
     const engineUrl = process.env.THIRDWEB_ENGINE_URL;
-    const adminKey = process.env.THIRDWEB_VAULT_ADMIN_KEY;
-    const clientId = process.env.THIRDWEB_CLIENT_ID;
+    // MODIFICA CHIAVE: Torniamo a usare la Secret Key principale, non quella del Vault.
+    const secretKey = process.env.THIRDWEB_SECRET_KEY; 
 
-    if (!engineUrl || !adminKey || !clientId) {
-        console.error("ERRORE: Una o più variabili d'ambiente di Engine non sono configurate su Vercel.");
+    if (!engineUrl || !secretKey) {
+        console.error("ERRORE: URL di Engine o SECRET_KEY non configurati su Vercel.");
         throw new Error("Configurazione del server incompleta.");
     }
     
-    // Puliamo l'URL di base e aggiungiamo il percorso corretto con la versione
     const cleanedEngineUrl = engineUrl.replace(/\/$/, ""); 
-    const fullEndpointUrl = `${cleanedEngineUrl}/v1/backend-wallet/create`; // <-- CORREZIONE CHIAVE
+    const fullEndpointUrl = `${cleanedEngineUrl}/v1/backend-wallet/create`;
 
+    // --- Chiamata API REALE a thirdweb Engine ---
     const engineResponse = await fetch(fullEndpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${adminKey}`, 
-        'x-client-id': clientId,
+        // Usiamo la Secret Key come Bearer Token per autenticare il servizio.
+        'Authorization': `Bearer ${secretKey}`,
+        // Includiamo anche il Client ID, che è buona norma
+        'x-client-id': process.env.THIRDWEB_CLIENT_ID,
       },
       body: JSON.stringify({}),
     });
 
     const responseText = await engineResponse.text();
+
     if (!engineResponse.ok) {
         throw new Error(`Errore da Engine (${engineResponse.status}): ${responseText}`);
     }
