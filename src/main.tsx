@@ -1,5 +1,5 @@
 // FILE: src/main.tsx
-// AGGIORNATO: Il router ora punta alla nuova pagina AziendaPage.
+// CORRETTO: Risolto l'errore di battitura nell'import di AdminPage.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -10,8 +10,8 @@ import "./index.css";
 import { inAppWallet, metamaskWallet, coinbaseWallet, walletConnect } from "@thirdweb-dev/react";
 
 import HomePage from "./pages/HomePage";
-import AziendaPage from "./pages/AziendaPage"; // <-- NUOVA PAGINA
-import AdminPage from "./pages.AdminPage";
+import AziendaPage from "./pages/AziendaPage";
+import AdminPage from "./pages/AdminPage"; // <-- CORREZIONE: Era "./pages.AdminPage"
 
 const container = document.getElementById("root");
 const root = createRoot(container!);
@@ -31,7 +31,7 @@ root.render(
       >
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/azienda" element={<AziendaPage />} /> {/* <-- NUOVO PERCORSO */}
+          <Route path="/azienda" element={<AziendaPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </ThirdwebProvider>
