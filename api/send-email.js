@@ -1,27 +1,28 @@
 // FILE: api/send-email.js
-// AGGIORNATO: Ora salva la richiesta su Firestore prima di inviare l'email.
+// QUESTA È LA VERSIONE FINALE E CORRETTA CHE FORMATTA L'EMAIL CORRETTAMENTE
 
 import { Resend } from 'resend';
 import admin from 'firebase-admin';
 
-// --- Configurazione di Firebase Admin ---
-// Inizializza l'app di Firebase solo se non è già stata inizializzata.
-try {
+// Funzione per inizializzare Firebase Admin in modo sicuro
+function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Le backslash (\n) vengono sostituite per interpretare correttamente la chiave
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      }),
-    });
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        }),
+      });
+    } catch (error) {
+      console.error('Firebase admin initialization error', error.stack);
+    }
   }
-} catch (error) {
-  console.error('Firebase admin initialization error', error.stack);
+  return admin.firestore();
 }
 
-const db = admin.firestore();
+const db = initializeFirebaseAdmin();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export default async (req, res) => {
@@ -32,9 +33,7 @@ export default async (req, res) => {
   try {
     const { companyName, contactEmail, sector, walletAddress, ...socials } = req.body;
 
-    // --- NUOVO: SALVA SU FIRESTORE ---
-    // Creiamo un nuovo documento nella collezione "pendingCompanies".
-    // Usiamo l'indirizzo del wallet come ID unico del documento per evitare duplicati.
+    // --- Salvataggio su Firestore (invariato) ---
     const pendingRef = db.collection('pendingCompanies').doc(walletAddress);
     await pendingRef.set({
       companyName,
@@ -46,15 +45,41 @@ export default async (req, res) => {
       ...socials,
     });
     
-    // --- Invio Email (logica invariata) ---
-    await resend.emails.send({
+    // --- Invio Email (CORRETTO) ---
+    const { data, error } = await resend.emails.send({
       from: 'Easy Chain <onboarding@resend.dev>',
       to: ['sfy.startup@gmail.com'],
       subject: `Nuova Richiesta Attivazione: ${companyName}`,
-      html: `<div>... (il tuo template HTML per l'email) ...</div>`, // Inserisci qui l'HTML dell'email
+      // MODIFICA CHIAVE: Abbiamo inserito l'HTML vero e proprio qui sotto.
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+          <h2>Nuova Richiesta di Attivazione</h2>
+          <p>Un'azienda ha richiesto l'attivazione sulla piattaforma Easy Chain.</p>
+          <hr />
+          <h3>Dettagli Richiesta:</h3>
+          <ul style="list-style-type: none; padding: 0;">
+            <li><strong>Nome Azienda:</strong> ${companyName}</li>
+            <li><strong>Email Contatto:</strong> ${contactEmail}</li>
+            <li><strong>Settore:</strong> ${sector}</li>
+            <li><strong>Wallet Address:</strong> ${walletAddress}</li>
+          </ul>
+          <h3>Social (Opzionali):</h3>
+          <ul style="list-style-type: none; padding: 0;">
+            <li><strong>Sito Web:</strong> ${socials.website || 'N/D'}</li>
+            <li><strong>Facebook:</strong> ${socials.facebook || 'N/D'}</li>
+            <li><strong>Instagram:</strong> ${socials.instagram || 'N/D'}</li>
+            <li><strong>Twitter/X:</strong> ${socials.twitter || 'N/D'}</li>
+            <li><strong>TikTok:</strong> ${socials.tiktok || 'N/D'}</li>
+          </ul>
+        </div>
+      `,
     });
 
-    res.status(200).json({ message: "Request received and saved." });
+    if (error) {
+      return res.status(400).json(error);
+    }
+
+    res.status(200).json({ message: "Request sent and saved successfully." });
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).json({ error: "Internal Server Error" });
