@@ -1,185 +1,160 @@
 // FILE: src/pages/AdminPage.tsx
-// AGGIORNATO: Ora carica i dati reali dal database Firestore e dal contratto.
+// Versione finale con modale interattiva per la gestione delle aziende.
 
-import React, { useState, useEffect } from "react";
-import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
+import React, { useState, useEffect, useCallback } from "react";
+import { ConnectWallet, useAddress } from "@thirdweb-dev/react";
 import "../App.css";
 
-const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
+// --- Componente Modale per la Modifica ---
+const EditCompanyModal = ({ company, onClose, onUpdate }) => {
+  const [credits, setCredits] = useState(company.credits || 50);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-
-// --- Componente per la Lista delle Aziende (Logica Migliorata) ---
-const CompanyList = () => {
-  const { contract } = useContract(contractAddress);
-  
-  // Stati per le nostre liste di dati
-  const [pendingCompanies, setPendingCompanies] = useState<any[]>([]);
-  const [activeCompanies, setActiveCompanies] = useState<any[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Stati per i filtri
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-
-  // In un'app reale, questa lista verrebbe da un evento o da un tuo database.
-  // Per ora, inseriamo qui manualmente gli indirizzi che hai già attivato.
-  const activeCompanyAddresses = [
-      "0x4Fe787C456CD58b03Aa33097CDA19F80893DB96F",
-      // Aggiungi qui altri indirizzi di aziende attive se ne attivi di nuove
-  ];
-  
-  // Effetto per caricare tutti i dati quando il componente viene montato
-  useEffect(() => {
-    const fetchAllData = async () => {
-      setIsLoading(true);
-
-      // --- 1. Carica le aziende in PENDING dalla nostra API ---
-      try {
-        const pendingResponse = await fetch('/api/get-pending-companies');
-        if (pendingResponse.ok) {
-          const pendingData = await pendingResponse.json();
-          // Aggiungiamo lo stato per coerenza
-          setPendingCompanies(pendingData.map((p: any) => ({ ...p, status: 'pending' })));
-        } else {
-          console.error("Errore nel caricare le aziende in pending");
-          setPendingCompanies([]);
-        }
-      } catch (error) {
-        console.error("Errore API:", error);
-        setPendingCompanies([]);
-      }
-
-      // --- 2. Carica i dati delle aziende ATTIVE dal contratto ---
-      if (contract && activeCompanyAddresses.length > 0) {
-        try {
-          const activePromises = activeCompanyAddresses.map(address => 
-            contract.call("getContributorInfo", [address])
-          );
-          const activeResults = await Promise.all(activePromises);
-          
-          const activeData = activeResults.map((info, index) => ({
-            id: activeCompanyAddresses[index],
-            companyName: info[0] || "Nome non trovato", // Nome reale dal contratto
-            walletAddress: activeCompanyAddresses[index],
-            contactEmail: "/", // Email non è on-chain
-            status: 'active' as const,
-          }));
-          setActiveCompanies(activeData);
-        } catch (error) {
-          console.error("Errore nel caricare le aziende attive", error);
-        }
-      } else {
-        setActiveCompanies([]);
-      }
-      setIsLoading(false);
-    };
-
-    fetchAllData();
-  }, [contract]);
-
-  // Effetto per applicare i filtri quando cambiano i dati o le opzioni di filtro
-  useEffect(() => {
-    let allCompanies = [...activeCompanies, ...pendingCompanies];
-
-    // Applica filtro per stato
-    if (filterStatus !== "all") {
-      allCompanies = allCompanies.filter(c => c.status === filterStatus);
+  const handleAction = async (action) => {
+    setIsProcessing(true);
+    try {
+      const response = await fetch('/api/activate-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, walletAddress: company.walletAddress, companyName: company.companyName, credits: parseInt(credits) }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      alert(result.message);
+      onUpdate(); // Chiama la funzione per ricaricare la lista
+      onClose(); // Chiude la modale
+    } catch (error) {
+      alert(`Errore: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
     }
-
-    // Applica filtro per nome
-    if (searchTerm) {
-      allCompanies = allCompanies.filter(c => 
-        c.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    setFilteredCompanies(allCompanies);
-  }, [searchTerm, filterStatus, activeCompanies, pendingCompanies]);
+  };
+  
+  const handleDelete = async () => {
+     if (!window.confirm(`Sei sicuro di voler eliminare ${company.companyName}? L'azione è irreversibile.`)) return;
+     setIsProcessing(true);
+     try {
+       const response = await fetch('/api/delete-company', {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ walletAddress: company.walletAddress, status: company.status }),
+       });
+       const result = await response.json();
+       if (!response.ok) throw new Error(result.error);
+       alert(result.message);
+       onUpdate();
+       onClose();
+     } catch (error) {
+        alert(`Errore: ${error.message}`);
+     } finally {
+        setIsProcessing(false);
+     }
+  };
 
   return (
-    <div style={{ marginTop: '2rem' }}>
-      <div className="filters-container">
-        <input 
-          type="text" 
-          placeholder="Cerca per nome azienda..."
-          className="form-input"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '300px' }}
-        />
-        <select 
-          className="form-input"
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          style={{ width: '200px' }}
-        >
-          <option value="all">Mostra Tutti</option>
-          <option value="active">Solo Attivate</option>
-          <option value="pending">Solo in Pending</option>
-        </select>
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <h2>Gestisci: {company.companyName}</h2>
+        <p><strong>Wallet:</strong> {company.walletAddress}</p>
+        
+        <div className="form-group">
+            <label>Crediti</label>
+            <input type="number" value={credits} onChange={(e) => setCredits(e.target.value)} className="form-input" />
+            <button onClick={() => handleAction('setCredits')} disabled={isProcessing} className="web3-button" style={{marginTop: '0.5rem'}}>Imposta Crediti</button>
+        </div>
+        <hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
+        <div className="modal-actions">
+            {company.status === 'pending' && <button onClick={() => handleAction('activate')} disabled={isProcessing} className="web3-button">✅ Attiva Contributor</button>}
+            {company.status === 'active' && <button onClick={() => handleAction('deactivate')} disabled={isProcessing} className="web3-button" style={{backgroundColor: '#f59e0b'}}>⏳ Disattiva Contributor</button>}
+            {company.status === 'deactivated' && <button onClick={() => handleAction('activate')} disabled={isProcessing} className="web3-button">✅ Riattiva Contributor</button>}
+            {(company.status === 'pending' || company.status === 'deactivated') && <button onClick={handleDelete} disabled={isProcessing} className="web3-button" style={{backgroundColor: '#ef4444'}}>❌ Elimina Azienda</button>}
+        </div>
+        <button onClick={onClose} disabled={isProcessing} style={{marginTop: '2rem', background: 'none', border: 'none', color: '#a0a0a0', cursor: 'pointer'}}>Chiudi</button>
       </div>
-
-      <table className="company-table">
-        <thead>
-          <tr>
-            <th>Stato</th>
-            <th>Nome Azienda</th>
-            <th>Wallet Address</th>
-            <th>Email Contatto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            <tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Caricamento dati...</td></tr>
-          ) : filteredCompanies.length > 0 ? (
-            filteredCompanies.map(company => (
-              <tr key={company.id} className="clickable-row">
-                <td>{company.status === 'active' ? '✅' : '⏳'}</td>
-                <td>{company.companyName}</td>
-                <td>{company.walletAddress}</td>
-                <td>{company.contactEmail}</td>
-              </tr>
-            ))
-          ) : (
-            <tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Nessuna azienda trovata.</td></tr>
-          )}
-        </tbody>
-      </table>
     </div>
   );
 };
 
 
+// --- Componente per la Lista delle Aziende ---
+const CompanyList = () => {
+    // ... Stessa logica di prima per caricare e filtrare i dati ...
+    const [allCompanies, setAllCompanies] = useState<any[]>([]);
+    const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterStatus, setFilterStatus] = useState("all");
+    const [selectedCompany, setSelectedCompany] = useState(null);
+
+    const fetchCompanies = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/get-companies');
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
+            const pending = data.pending.map((p: any) => ({ ...p, status: 'pending' }));
+            const active = data.active.map((a: any) => ({ ...a, status: a.status || 'active' })); // Assicura che lo stato sia presente
+            setAllCompanies([...pending, ...active]);
+        } catch (error) { console.error("Errore caricamento aziende:", error); }
+        setIsLoading(false);
+    }, []);
+
+    useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+
+    useEffect(() => {
+        let companies = [...allCompanies];
+        if (filterStatus !== "all") { companies = companies.filter(c => c.status === filterStatus); }
+        if (searchTerm) { companies = companies.filter(c => c.companyName.toLowerCase().includes(searchTerm.toLowerCase())); }
+        setFilteredCompanies(companies);
+    }, [searchTerm, filterStatus, allCompanies]);
+
+    return (
+        <div style={{ marginTop: '2rem' }}>
+            <div className="filters-container">
+              <input type="text" placeholder="Cerca..." className="form-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '300px' }}/>
+              <select className="form-input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '200px' }}>
+                <option value="all">Tutti</option><option value="active">Attivate</option><option value="pending">In Pending</option><option value="deactivated">Disattivate</option>
+              </select>
+            </div>
+            <table className="company-table">
+                <thead><tr><th>Stato</th><th>Nome Azienda</th><th>Wallet</th><th>Azione</th></tr></thead>
+                <tbody>
+                    {isLoading ? (<tr><td colSpan={4}>Caricamento...</td></tr>) : 
+                    filteredCompanies.length > 0 ? (
+                        filteredCompanies.map(c => (
+                        <tr key={c.id}>
+                            <td>{c.status === 'active' ? '✅' : c.status === 'pending' ? '⏳' : '❌'}</td>
+                            <td>{c.companyName}</td><td>{c.walletAddress}</td>
+                            <td><button onClick={() => setSelectedCompany(c)} className="web3-button" style={{padding: '0.5rem 1rem'}}>Gestisci</button></td>
+                        </tr>
+                        ))) : 
+                    (<tr><td colSpan={4}>Nessuna azienda trovata.</td></tr>)}
+                </tbody>
+            </table>
+            {selectedCompany && <EditCompanyModal company={selectedCompany} onClose={() => setSelectedCompany(null)} onUpdate={fetchCompanies} />}
+        </div>
+    );
+};
+
 // --- Componente Principale della Pagina Admin ---
 export default function AdminPage() {
-  const address = useAddress();
-  const { contract } = useContract(contractAddress);
-  const { data: superOwner } = useContractRead(contract, "superOwner");
-  const { data: owner } = useContractRead(contract, "owner");
+    const address = useAddress();
+    const { data: superOwner } = useContractRead(useContract(contractAddress).contract, "superOwner");
+    const { data: owner } = useContractRead(useContract(contractAddress).contract, "owner");
+    const isAllowed = address && ( (superOwner && address.toLowerCase() === superOwner.toLowerCase()) || (owner && address.toLowerCase() === owner.toLowerCase()) );
 
-  const isSuperOwner = address && superOwner && address.toLowerCase() === superOwner.toLowerCase();
-  const isOwner = address && owner && address.toLowerCase() === owner.toLowerCase();
-  
-  return (
-    <div className="app-container">
-      <main className="main-content" style={{width: '100%', padding: '2rem 4rem'}}>
-        <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 className="page-title">Pannello Amministrazione</h1>
-          <ConnectWallet theme="dark" btnTitle="Connetti"/>
-        </header>
-
-        {!address ? (
-          <p>Connetti il tuo wallet da amministratore per accedere.</p>
-        ) : (isSuperOwner || isOwner) ? (
-          <div>
-            <h3>Benvenuto, SFY Labs!</h3>
-            <CompanyList />
-          </div>
-        ) : (
-          <h2 style={{ color: '#ef4444', fontSize: '2rem', marginTop: '4rem' }}>❌ ACCESSO NEGATO</h2>
-        )}
-      </main>
-    </div>
-  );
+    return (
+        <div className="app-container">
+            <main className="main-content" style={{width: '100%'}}>
+                <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h1 className="page-title">Pannello Amministrazione</h1>
+                    <ConnectWallet theme="dark" btnTitle="Connetti"/>
+                </header>
+                {!address ? <p>Connetti il tuo wallet...</p> : 
+                isAllowed ? <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div> : 
+                <h2>❌ ACCESSO NEGATO</h2>}
+            </main>
+        </div>
+    );
 }
+
