@@ -1,5 +1,5 @@
 // FILE: src/main.tsx
-// AGGIORNATO: Ora configura il routing e tutti i tipi di wallet.
+// AGGIORNATO per gestire la navigazione tra le pagine.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -8,7 +8,7 @@ import { ThirdwebProvider } from "@thirdweb-dev/react";
 import "./index.css";
 
 // Importiamo i wallet che serviranno in tutto il sito
-import { inAppWallet, metamaskWallet, coinbaseWallet, walletConnect } from "@thirdweb-dev/react";
+import { inAppWallet, metamaskWallet } from "@thirdweb-dev/react";
 
 // Importiamo i nostri nuovi componenti di pagina
 import HomePage from "./pages/HomePage";
@@ -24,13 +24,11 @@ root.render(
       <ThirdwebProvider
         activeChain="polygon"
         clientId="e40dfd747fabedf48c5837fb79caf2eb"
-        // Ora supportiamo sia i social login SIA i wallet tradizionali.
-        // La scelta di quale usare sarà gestita dalle singole pagine.
         supportedWallets={[
+          // Wallet per gli utenti (social)
           inAppWallet(),
+          // Wallet per l'admin (MetaMask, etc.)
           metamaskWallet(),
-          coinbaseWallet(),
-          walletConnect(),
         ]}
       >
         {/* Routes definisce quale componente mostrare per ogni URL */}

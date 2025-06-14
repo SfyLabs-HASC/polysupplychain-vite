@@ -1,5 +1,5 @@
 // FILE: src/pages/HomePage.tsx
-// QUESTA È LA VERSIONE FINALE E COMPLETA CHE RISOLVE L'ERRORE DELLA PAGINA NERA
+// Codice completo per la homepage delle aziende, con form e dashboard.
 
 import React, { useState } from "react";
 import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
@@ -7,7 +7,7 @@ import "../App.css"; // Assicurati di avere il file App.css con gli stili
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
-// === COMPONENTE 1: FORM DI REGISTRAZIONE ===
+// === Componente 1: Form di Registrazione per nuovi utenti ===
 const RegistrationForm = () => {
   const address = useAddress();
   const [formData, setFormData] = useState({
@@ -73,7 +73,7 @@ const RegistrationForm = () => {
   );
 };
 
-// === COMPONENTE 2: DASHBOARD PER L'UTENTE ATTIVO ===
+// === Componente 2: Dashboard per l'utente attivo ===
 const ActiveUserDashboard = () => {
     return (
         <div className="card">
@@ -84,7 +84,7 @@ const ActiveUserDashboard = () => {
     );
 };
 
-// === COMPONENTE PRINCIPALE DELLA PAGINA ===
+// === Componente principale della pagina ===
 export default function HomePage() {
   const address = useAddress();
   const { contract } = useContract(contractAddress);

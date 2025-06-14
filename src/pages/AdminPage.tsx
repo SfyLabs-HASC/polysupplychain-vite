@@ -2,6 +2,7 @@
 // Pagina dedicata all'amministrazione con controllo degli accessi.
 
 import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
+import { metamaskWallet } from "@thirdweb-dev/react"; // Importiamo il wallet per l'admin
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
@@ -14,7 +15,6 @@ const AdminDashboard = () => {
   const { data: superOwner, isLoading: isLoadingSuperOwner } = useContractRead(contract, "superOwner");
   const { data: owner, isLoading: isLoadingOwner } = useContractRead(contract, "owner");
 
-  // Logica di controllo accesso
   const renderAdminContent = () => {
     if (isLoadingSuperOwner || isLoadingOwner) {
       return <p>Verifica permessi in corso...</p>;
@@ -24,14 +24,14 @@ const AdminDashboard = () => {
     const isOwner = address && owner && address.toLowerCase() === owner.toLowerCase();
 
     if (isSuperOwner || isOwner) {
-      return <h2 style={{ color: '#34d399' }}>✅ ACCESSO CONSENTITO</h2>;
+      return <h2 style={{ color: '#34d399', fontSize: '2rem' }}>✅ ACCESSO CONSENTITO</h2>;
     } else {
-      return <h2 style={{ color: '#ef4444' }}>❌ ACCESSO NEGATO</h2>;
+      return <h2 style={{ color: '#ef4444', fontSize: '2rem' }}>❌ ACCESSO NEGATO</h2>;
     }
   };
 
   return (
-    <div>
+    <div style={{ marginTop: '3rem' }}>
       {renderAdminContent()}
       {/* Qui in futuro aggiungeremo la tabella delle aziende in pending */}
     </div>
@@ -43,7 +43,7 @@ export default function AdminPage() {
   const address = useAddress();
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif', backgroundColor: '#121212', color: 'white', minHeight: '100vh', textAlign: 'center' }}>
+    <div style={{ padding: '2rem', fontFamily: 'sans-serif', backgroundColor: '#0a0a0a', color: 'white', minHeight: '100vh', textAlign: 'center' }}>
       <h1>Pannello Amministrazione</h1>
       <p>Connetti il tuo wallet da amministratore per accedere.</p>
       
@@ -51,8 +51,8 @@ export default function AdminPage() {
         <ConnectWallet 
           theme="dark" 
           btnTitle="Connetti Wallet Admin"
-          // NOTA: Il pulsante mostrerà tutte le opzioni, incluse quelle social.
-          // È compito dell'admin scegliere il proprio wallet (MetaMask, etc.).
+          // Limitiamo le opzioni di connessione solo ai wallet tradizionali
+          supportedWallets={[metamaskWallet()]}
         />
       </div>
 
