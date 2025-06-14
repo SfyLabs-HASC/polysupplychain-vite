@@ -1,5 +1,5 @@
 // FILE: api/create-relayer.js
-// VERSIONE DEFINITIVA: Usa la Vault Admin Key per l'autenticazione, come richiesto da Engine.
+// VERSIONE DEFINITIVA: Corretto l'URL dell'endpoint per includere il versionamento.
 
 import admin from 'firebase-admin';
 
@@ -32,7 +32,6 @@ export default async (req, res) => {
     }
 
     const engineUrl = process.env.THIRDWEB_ENGINE_URL;
-    // MODIFICA CHIAVE: Ora usiamo la chiave corretta per questa operazione.
     const adminKey = process.env.THIRDWEB_VAULT_ADMIN_KEY;
 
     if (!engineUrl || !adminKey) {
@@ -40,8 +39,9 @@ export default async (req, res) => {
         throw new Error("Configurazione del server incompleta.");
     }
     
+    // Puliamo l'URL di base e aggiungiamo il percorso corretto con la versione
     const cleanedEngineUrl = engineUrl.replace(/\/$/, ""); 
-    const fullEndpointUrl = `${cleanedEngineUrl}/backend-wallet/create`;
+    const fullEndpointUrl = `${cleanedEngineUrl}/v1/backend-wallet/create`; // <-- CORREZIONE CHIAVE
 
     // --- Chiamata API REALE a thirdweb Engine ---
     const engineResponse = await fetch(fullEndpointUrl, {
