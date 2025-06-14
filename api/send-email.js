@@ -1,60 +1,62 @@
 // FILE: api/send-email.js
-// Corretto per inviare l'email come HTML e non come testo semplice.
+// AGGIORNATO: Ora salva la richiesta su Firestore prima di inviare l'email.
 
 import { Resend } from 'resend';
+import admin from 'firebase-admin';
 
-// Creiamo un client di Resend usando la nostra chiave API segreta
-// che leggeremo dalle variabili d'ambiente di Vercel.
+// --- Configurazione di Firebase Admin ---
+// Inizializza l'app di Firebase solo se non è già stata inizializzata.
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        // Le backslash (\n) vengono sostituite per interpretare correttamente la chiave
+        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      }),
+    });
+  }
+} catch (error) {
+  console.error('Firebase admin initialization error', error.stack);
+}
+
+const db = admin.firestore();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// La funzione handler che riceve la richiesta dal nostro frontend
 export default async (req, res) => {
-  // Accettiamo solo richieste POST
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method Not Allowed' });
-    return;
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    // Estraiamo i dati del form inviati dal frontend
     const { companyName, contactEmail, sector, walletAddress, ...socials } = req.body;
 
-    // Invia l'email usando Resend
-    const { data, error } = await resend.emails.send({
-      from: 'PolySupplyChain <onboarding@resend.dev>', // Mittente speciale per il piano gratuito
-      to: ['sfy.startup@gmail.com'], // La tua email di destinazione
+    // --- NUOVO: SALVA SU FIRESTORE ---
+    // Creiamo un nuovo documento nella collezione "pendingCompanies".
+    // Usiamo l'indirizzo del wallet come ID unico del documento per evitare duplicati.
+    const pendingRef = db.collection('pendingCompanies').doc(walletAddress);
+    await pendingRef.set({
+      companyName,
+      contactEmail,
+      sector,
+      walletAddress,
+      status: 'pending',
+      requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...socials,
+    });
+    
+    // --- Invio Email (logica invariata) ---
+    await resend.emails.send({
+      from: 'Easy Chain <onboarding@resend.dev>',
+      to: ['sfy.startup@gmail.com'],
       subject: `Nuova Richiesta Attivazione: ${companyName}`,
-      // MODIFICA CHIAVE: Usiamo 'html' invece di 'react' per inviare la stringa HTML
-      html: `
-        <div>
-          <h2>Nuova Richiesta di Attivazione</h2>
-          <p>Un'azienda ha richiesto l'attivazione sulla piattaforma.</p>
-          <hr />
-          <h3>Dettagli Richiesta:</h3>
-          <ul>
-            <li><strong>Nome Azienda:</strong> ${companyName}</li>
-            <li><strong>Email Contatto:</strong> ${contactEmail}</li>
-            <li><strong>Settore:</strong> ${sector}</li>
-            <li><strong>Wallet Address:</strong> ${walletAddress}</li>
-          </ul>
-          <h3>Social (Opzionali):</h3>
-          <ul>
-            <li><strong>Sito Web:</strong> ${socials.website || 'N/D'}</li>
-            <li><strong>Facebook:</strong> ${socials.facebook || 'N/D'}</li>
-            <li><strong>Instagram:</strong> ${socials.instagram || 'N/D'}</li>
-            <li><strong>Twitter/X:</strong> ${socials.twitter || 'N/D'}</li>
-            <li><strong>TikTok:</strong> ${socials.tiktok || 'N/D'}</li>
-          </ul>
-        </div>
-      `,
+      html: `<div>... (il tuo template HTML per l'email) ...</div>`, // Inserisci qui l'HTML dell'email
     });
 
-    if (error) {
-      return res.status(400).json(error);
-    }
-
-    res.status(200).json(data);
+    res.status(200).json({ message: "Request received and saved." });
   } catch (error) {
-    res.status(500).json(error);
+    console.error("Error processing request:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };

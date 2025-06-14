@@ -1,5 +1,5 @@
 // FILE: src/pages/AdminPage.tsx
-// AGGIORNATO: Ora legge i dati reali dal contratto e rimuove i dati finti.
+// AGGIORNATO: Ora carica i dati reali dal database Firestore e dal contratto.
 
 import React, { useState, useEffect } from "react";
 import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
@@ -7,63 +7,96 @@ import "../App.css";
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
-// --- LISTA AZIENDE IN PENDING (ORA VUOTA) ---
-// In un'applicazione reale, questi dati proverrebbero da un tuo database (Firebase, Supabase, etc.)
-const pendingCompanies = []; // Non inventiamo più dati!
 
-// --- NUOVO COMPONENTE: Riga per una singola azienda attiva ---
-// Questo componente si occupa di caricare e mostrare i dati di UNA SOLA azienda attiva.
-const ActiveCompanyRow = ({ address }: { address: string }) => {
+// --- Componente per la Lista delle Aziende (Logica Migliorata) ---
+const CompanyList = () => {
   const { contract } = useContract(contractAddress);
   
-  // Usiamo useContractRead per leggere i dati di QUESTA specifica azienda dal contratto
-  const { data: contributorInfo, isLoading } = useContractRead(
-    contract,
-    "getContributorInfo",
-    [address]
-  );
+  // Stati per le nostre liste di dati
+  const [pendingCompanies, setPendingCompanies] = useState<any[]>([]);
+  const [activeCompanies, setActiveCompanies] = useState<any[]>([]);
+  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (isLoading) {
-    return (
-      <tr>
-        <td>✅</td>
-        <td colSpan={3}>Caricamento dati on-chain...</td>
-      </tr>
-    );
-  }
-
-  // Estraiamo il nome reale dal contratto (è il primo elemento dell'array restituito)
-  const companyName = contributorInfo?.[0] || "Nome non trovato";
-
-  return (
-    <tr className="clickable-row">
-      <td>✅</td>
-      <td>{companyName}</td>
-      <td>{address}</td>
-      <td>/</td> {/* Come richiesto, mettiamo "/" per l'email */}
-    </tr>
-  );
-};
-
-
-// --- COMPONENTE PER LA LISTA DELLE AZIENDE ---
-const CompanyList = () => {
-  // --- LISTA STATICA DEGLI INDIRIZZI ATTIVI ---
-  // In un'app reale, avresti un tuo sistema per sapere quali indirizzi hai attivato.
-  // Per ora, inseriamo qui manualmente l'indirizzo che hai attivato.
-  const activeCompanyAddresses = [
-      "0x4Fe787C456CD58b03Aa33097CDA19F80893DB96F",
-      // Se attivi altre aziende, aggiungi i loro indirizzi qui
-  ];
-
-  // Stati per la ricerca e il filtro
+  // Stati per i filtri
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  // Per ora, la lista filtrata conterrà solo i dati delle aziende attive.
-  // La ricerca e il filtro verranno applicati in futuro quando avremo più dati.
-  // Questo è un punto di partenza per una logica più complessa.
+  // In un'app reale, questa lista verrebbe da un evento o da un tuo database.
+  // Per ora, inseriamo qui manualmente gli indirizzi che hai già attivato.
+  const activeCompanyAddresses = [
+      "0x4Fe787C456CD58b03Aa33097CDA19F80893DB96F",
+      // Aggiungi qui altri indirizzi di aziende attive se ne attivi di nuove
+  ];
   
+  // Effetto per caricare tutti i dati quando il componente viene montato
+  useEffect(() => {
+    const fetchAllData = async () => {
+      setIsLoading(true);
+
+      // --- 1. Carica le aziende in PENDING dalla nostra API ---
+      try {
+        const pendingResponse = await fetch('/api/get-pending-companies');
+        if (pendingResponse.ok) {
+          const pendingData = await pendingResponse.json();
+          // Aggiungiamo lo stato per coerenza
+          setPendingCompanies(pendingData.map((p: any) => ({ ...p, status: 'pending' })));
+        } else {
+          console.error("Errore nel caricare le aziende in pending");
+          setPendingCompanies([]);
+        }
+      } catch (error) {
+        console.error("Errore API:", error);
+        setPendingCompanies([]);
+      }
+
+      // --- 2. Carica i dati delle aziende ATTIVE dal contratto ---
+      if (contract && activeCompanyAddresses.length > 0) {
+        try {
+          const activePromises = activeCompanyAddresses.map(address => 
+            contract.call("getContributorInfo", [address])
+          );
+          const activeResults = await Promise.all(activePromises);
+          
+          const activeData = activeResults.map((info, index) => ({
+            id: activeCompanyAddresses[index],
+            companyName: info[0] || "Nome non trovato", // Nome reale dal contratto
+            walletAddress: activeCompanyAddresses[index],
+            contactEmail: "/", // Email non è on-chain
+            status: 'active' as const,
+          }));
+          setActiveCompanies(activeData);
+        } catch (error) {
+          console.error("Errore nel caricare le aziende attive", error);
+        }
+      } else {
+        setActiveCompanies([]);
+      }
+      setIsLoading(false);
+    };
+
+    fetchAllData();
+  }, [contract]);
+
+  // Effetto per applicare i filtri quando cambiano i dati o le opzioni di filtro
+  useEffect(() => {
+    let allCompanies = [...activeCompanies, ...pendingCompanies];
+
+    // Applica filtro per stato
+    if (filterStatus !== "all") {
+      allCompanies = allCompanies.filter(c => c.status === filterStatus);
+    }
+
+    // Applica filtro per nome
+    if (searchTerm) {
+      allCompanies = allCompanies.filter(c => 
+        c.companyName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    setFilteredCompanies(allCompanies);
+  }, [searchTerm, filterStatus, activeCompanies, pendingCompanies]);
+
   return (
     <div style={{ marginTop: '2rem' }}>
       <div className="filters-container">
@@ -73,7 +106,7 @@ const CompanyList = () => {
           className="form-input"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '300px', marginRight: '1rem' }}
+          style={{ width: '300px' }}
         />
         <select 
           className="form-input"
@@ -97,17 +130,19 @@ const CompanyList = () => {
           </tr>
         </thead>
         <tbody>
-          {/* Mostriamo solo le aziende attive se il filtro è 'all' o 'active' */}
-          {(filterStatus === 'all' || filterStatus === 'active') && 
-            activeCompanyAddresses.map(address => (
-              <ActiveCompanyRow key={address} address={address} />
-          ))}
-
-          {/* Qui in futuro potremmo mostrare le aziende in pending dal database */}
-          {pendingCompanies.length === 0 && (filterStatus === 'all' || filterStatus === 'pending') && (
-            <tr>
-              <td colSpan={4} style={{textAlign: 'center', padding: '1rem', color: '#a0a0a0'}}>Nessuna richiesta di attivazione in sospeso.</td>
-            </tr>
+          {isLoading ? (
+            <tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Caricamento dati...</td></tr>
+          ) : filteredCompanies.length > 0 ? (
+            filteredCompanies.map(company => (
+              <tr key={company.id} className="clickable-row">
+                <td>{company.status === 'active' ? '✅' : '⏳'}</td>
+                <td>{company.companyName}</td>
+                <td>{company.walletAddress}</td>
+                <td>{company.contactEmail}</td>
+              </tr>
+            ))
+          ) : (
+            <tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Nessuna azienda trovata.</td></tr>
           )}
         </tbody>
       </table>
@@ -116,7 +151,7 @@ const CompanyList = () => {
 };
 
 
-// --- COMPONENTE PRINCIPALE DELLA PAGINA ADMIN ---
+// --- Componente Principale della Pagina Admin ---
 export default function AdminPage() {
   const address = useAddress();
   const { contract } = useContract(contractAddress);
