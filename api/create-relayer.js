@@ -1,5 +1,5 @@
 // FILE: api/create-relayer.js
-// VERSIONE REALE E CORRETTA: Usa le chiavi corrette e ha una gestione degli errori migliore.
+// VERSIONE FINALE E ROBUSTA: Migliorata la gestione dell'URL e aggiunto il logging per il debug.
 
 import admin from 'firebase-admin';
 
@@ -31,34 +31,44 @@ export default async (req, res) => {
       return res.status(400).json({ error: "ID Azienda mancante." });
     }
 
-    // Controlliamo che tutte le variabili d'ambiente necessarie esistano
+    // --- 1. Controllo e Pulizia delle Variabili d'Ambiente ---
     const engineUrl = process.env.THIRDWEB_ENGINE_URL;
     const secretKey = process.env.THIRDWEB_SECRET_KEY;
+    const accessToken = process.env.THIRDWEB_VAULT_ACCESS_TOKEN;
 
-    if (!engineUrl || !secretKey) {
-        console.error("ERRORE: Variabili d'ambiente di Engine (URL o SECRET_KEY) non configurate correttamente su Vercel.");
+    if (!engineUrl || !secretKey || !accessToken) {
+        console.error("ERRORE: Una o più variabili d'ambiente di Engine non sono configurate su Vercel.");
         throw new Error("Configurazione del server incompleta.");
     }
     
-    // --- 1. Chiamata API REALE a thirdweb Engine per creare un nuovo wallet ---
-    console.log("Tentativo di creare un wallet su Engine...");
-    const engineResponse = await fetch(
-      `${engineUrl}/backend-wallet/create`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${secretKey}`,
-        },
-        body: JSON.stringify({}), // Il corpo può essere vuoto
-      }
-    );
+    // Puliamo l'URL per evitare errori di battitura (es. doppie barre)
+    const cleanedEngineUrl = engineUrl.replace(/\/$/, ""); // Rimuove la barra finale se presente
+    const fullEndpointUrl = `${cleanedEngineUrl}/backend-wallet/create`;
+    
+    // --- 2. Preparazione della Chiamata API REALE a thirdweb Engine ---
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${secretKey}`,
+      'x-thirdweb-access-token': accessToken,
+    };
 
-    const responseText = await engineResponse.text(); // Leggiamo la risposta come testo per sicurezza
-    console.log(`Risposta da Engine: (Status: ${engineResponse.status})`, responseText);
+    // LOG DI DEBUG: Stampiamo l'URL e le intestazioni (senza la chiave) per verificare
+    console.log(`DEBUG: Chiamata a Engine...`);
+    console.log(`DEBUG: Metodo: POST`);
+    console.log(`DEBUG: URL: ${fullEndpointUrl}`);
+    console.log(`DEBUG: Headers presenti: ${Object.keys(headers).join(', ')}`);
+
+    const engineResponse = await fetch(fullEndpointUrl, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({}),
+    });
+
+    const responseText = await engineResponse.text();
+    console.log(`DEBUG: Risposta testuale da Engine (Status: ${engineResponse.status}): ${responseText}`);
 
     if (!engineResponse.ok) {
-        throw new Error(`Errore da Engine: ${responseText}`);
+        throw new Error(`Errore da Engine (${engineResponse.status}): ${responseText}`);
     }
 
     const newWalletData = JSON.parse(responseText);
@@ -68,7 +78,7 @@ export default async (req, res) => {
         throw new Error("Engine non ha restituito un indirizzo valido per il wallet.");
     }
 
-    // --- 2. Aggiorna il nostro database Firestore ---
+    // --- 3. Aggiorna il nostro database Firestore ---
     const collectionName = companyStatus === 'pending' ? 'pendingCompanies' : 'activeCompanies';
     const companyRef = db.collection(collectionName).doc(companyId);
     
@@ -82,7 +92,6 @@ export default async (req, res) => {
     });
 
   } catch (error) {
-    // Gestione errore corretta per JavaScript
     const errorMessage = error instanceof Error ? error.message : "Internal Server Error";
     console.error("Errore critico durante la creazione del relayer:", errorMessage);
     res.status(500).json({ error: errorMessage });
