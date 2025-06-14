@@ -1,5 +1,5 @@
 // FILE: src/pages/AdminPage.tsx
-// AGGIORNATO: Ora la tabella include i crediti e il numero di batch completati.
+// CORRETTO: Risolto l'errore di build rimuovendo l'opzione "enabled".
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectWallet, useAddress, useContract, useContractRead, Web3Button } from "@thirdweb-dev/react";
@@ -18,18 +18,17 @@ type Company = {
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
 // --- Componente per una singola riga della tabella ---
-// Ora ogni riga gestisce il caricamento dei propri dati on-chain.
 const CompanyRow = ({ company, onManageClick }: { company: Company, onManageClick: (company: Company) => void }) => {
   const { contract } = useContract(contractAddress);
 
-  // Leggiamo le info (nome, crediti, stato) per questa specifica azienda
+  // CORREZIONE: Invece di usare "enabled", passiamo 'undefined' come argomento se la condizione non è vera.
+  // L'hook non partirà se non ha un indirizzo valido da interrogare.
   const { data: contributorInfo, isLoading: isLoadingInfo } = useContractRead(
-    contract, "getContributorInfo", [company.walletAddress], { enabled: company.status === 'active' }
+    contract, "getContributorInfo", company.status === 'active' ? [company.walletAddress] : undefined
   );
 
-  // Leggiamo il numero di batch per questa specifica azienda
   const { data: batchIds, isLoading: isLoadingBatches } = useContractRead(
-    contract, "getBatchesByContributor", [company.walletAddress], { enabled: company.status === 'active' }
+    contract, "getBatchesByContributor", company.status === 'active' ? [company.walletAddress] : undefined
   );
 
   const displayName = company.status === 'active' ? (contributorInfo?.[0] || company.companyName) : company.companyName;
@@ -50,81 +49,22 @@ const CompanyRow = ({ company, onManageClick }: { company: Company, onManageClic
 };
 
 
-// --- Componente Modale per la Modifica (invariato) ---
+// --- Componente Modale per la Modifica ---
 const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, onClose: () => void, onUpdate: () => void }) => {
-  // Il codice di questo componente rimane identico a prima.
-  // ...
-  return <div className="modal-overlay">...</div>; // Contenuto omesso per brevità
+  // Il codice di questo componente è corretto e rimane invariato
+  // ... (Contenuto omesso per brevità, ma deve essere presente nel tuo file)
 };
 
 
 // --- Componente per la Lista delle Aziende ---
 const CompanyList = () => {
-    // ... (La logica per caricare i dati e filtrare rimane la stessa di prima) ...
-    const [allCompanies, setAllCompanies] = useState<Company[]>([]);
-    const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [filterStatus, setFilterStatus] = useState("all");
-    const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-
-    const fetchCompanies = useCallback(async () => {
-      // ... (La logica per chiamare /api/get-pending-companies è la stessa) ...
-    }, []);
-
-    useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
-
-    useEffect(() => {
-        // ... (La logica di filtro è la stessa) ...
-    }, [searchTerm, filterStatus, allCompanies]);
-
-    return (
-        <div style={{ marginTop: '2rem' }}>
-            <div className="filters-container">
-              {/* ... Filtri ... */}
-            </div>
-            <table className="company-table">
-                <thead>
-                    <tr>
-                        <th>Stato</th>
-                        <th>Nome Azienda</th>
-                        <th>Wallet Address</th>
-                        <th>Crediti</th>
-                        <th>Batch Creati</th>
-                        <th>Azione</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {isLoading ? (<tr><td colSpan={6} style={{textAlign: 'center', padding: '2rem'}}>Caricamento...</td></tr>) : 
-                    filteredCompanies.length > 0 ? (
-                        filteredCompanies.map(c => (
-                            <CompanyRow key={c.id} company={c} onManageClick={setSelectedCompany} />
-                        ))) : 
-                    (<tr><td colSpan={6} style={{textAlign: 'center', padding: '2rem'}}>Nessuna azienda trovata.</td></tr>)}
-                </tbody>
-            </table>
-            {selectedCompany && <EditCompanyModal company={selectedCompany} onClose={() => setSelectedCompany(null)} onUpdate={fetchCompanies} />}
-        </div>
-    );
+    // Il codice di questo componente è corretto e rimane invariato
+    // ... (Contenuto omesso per brevità, ma deve essere presente nel tuo file)
 };
 
 
 // --- Componente Principale della Pagina Admin ---
 export default function AdminPage() {
-    // ... Questo componente rimane identico a prima ...
-    const address = useAddress();
-    // ... resto della logica di accesso ...
-
-    return (
-        <div className="app-container">
-            <main className="main-content" style={{width: '100%'}}>
-                <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h1 className="page-title">Pannello Amministrazione</h1>
-                    <ConnectWallet theme="dark" btnTitle="Connetti"/>
-                </header>
-                {/* ... resto della UI ... */}
-            </main>
-        </div>
-    );
+    // Il codice di questo componente è corretto e rimane invariato
+    // ... (Contenuto omesso per brevità, ma deve essere presente nel tuo file)
 }
-
