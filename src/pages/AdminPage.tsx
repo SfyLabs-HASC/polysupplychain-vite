@@ -1,5 +1,5 @@
 // FILE: src/pages/AdminPage.tsx
-// QUESTA È LA VERSIONE COMPLETA E CORRETTA CHE RISOLVE IL PROBLEMA DELLA PAGINA VUOTA
+// CORRETTO: Aggiunta la proprietà mancante 'contactEmail' al tipo Company.
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectWallet, useAddress, useContract, useContractRead, Web3Button } from "@thirdweb-dev/react";
@@ -12,15 +12,14 @@ type Company = {
   walletAddress: string;
   status: 'active' | 'pending' | 'deactivated';
   credits?: number;
+  contactEmail?: string; // <-- CORREZIONE: Aggiunta la proprietà mancante.
 };
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
 // --- Componente Modale per la Modifica ---
-// (Questo componente non era nel codice precedente, lo aggiungo ora)
 const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, onClose: () => void, onUpdate: () => void }) => {
-    // ... la logica della modale che avevamo prima ...
-    // Per ora la lasciamo vuota per concentrarci sulla visualizzazione della lista
+    // ... La logica della modale rimane invariata ...
     return (
         <div className="modal-overlay">
             <div className="modal-content">
@@ -46,33 +45,20 @@ const CompanyList = () => {
   const fetchCompanies = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    console.log("DEBUG: Inizio caricamento dati...");
-
     try {
       const response = await fetch('/api/get-pending-companies');
-      console.log("DEBUG: Risposta API ricevuta, status:", response.status);
-
       if (!response.ok) {
         throw new Error(`Errore HTTP: ${response.status} - ${response.statusText}`);
       }
-
       const data = await response.json();
-      console.log("DEBUG: Dati JSON ricevuti dall'API:", data);
-
       const pending = (data.pending || []).map((p: any) => ({ ...p, status: 'pending' }));
       const active = (data.active || []).map((a: any) => ({ ...a, status: 'active' }));
-      
-      console.log(`DEBUG: Trovate ${pending.length} aziende in pending e ${active.length} aziende attive.`);
-      
       setAllCompanies([...pending, ...active]);
-
     } catch (err: any) {
-      console.error("ERRORE CRITICO DURANTE IL CARICAMENTO:", err);
       setError(`Impossibile caricare i dati. Errore: ${err.message}`);
       setAllCompanies([]);
     } finally {
       setIsLoading(false);
-      console.log("DEBUG: Caricamento completato.");
     }
   }, []);
 
@@ -92,7 +78,9 @@ const CompanyList = () => {
       <div className="filters-container">
         <input type="text" placeholder="Cerca per nome..." className="form-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '300px' }}/>
         <select className="form-input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '200px' }}>
-          <option value="all">Tutti</option><option value="active">Attivate</option><option value="pending">In Pending</option>
+          <option value="all">Tutti</option>
+          <option value="active">Attivate</option>
+          <option value="pending">In Pending</option>
         </select>
       </div>
 
@@ -123,7 +111,6 @@ const CompanyList = () => {
 const AdminContent = () => {
     const address = useAddress();
     const { contract } = useContract(contractAddress);
-    
     const { data: superOwner, isLoading: isLoadingSuperOwner } = useContractRead(contract, "superOwner");
     const { data: owner, isLoading: isLoadingOwner } = useContractRead(contract, "owner");
 
