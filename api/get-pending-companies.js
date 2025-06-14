@@ -1,9 +1,9 @@
 // FILE: api/get-pending-companies.js
-// NUOVO: Questo endpoint legge le aziende in pending dal nostro database Firestore.
+// AGGIORNATO: Semplificata la query a Firestore per evitare errori di indicizzazione.
 
 import admin from 'firebase-admin';
 
-// Funzione per inizializzare Firebase Admin in modo sicuro (evita inizializzazioni multiple)
+// Funzione per inizializzare Firebase Admin in modo sicuro
 function initializeFirebaseAdmin() {
   if (!admin.apps.length) {
     try {
@@ -11,7 +11,6 @@ function initializeFirebaseAdmin() {
         credential: admin.credential.cert({
           projectId: process.env.FIREBASE_PROJECT_ID,
           clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          // Sostituisce i caratteri di escape per interpretare correttamente la chiave privata da Vercel
           privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
         }),
       });
@@ -25,40 +24,34 @@ function initializeFirebaseAdmin() {
 const db = initializeFirebaseAdmin();
 
 export default async (req, res) => {
-  // Rispondiamo solo a richieste di tipo GET
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    // Interroghiamo la collezione "pendingCompanies" in Firestore,
-    // prendendo solo i documenti con status "pending" e ordinandoli per data di richiesta.
-    const snapshot = await db.collection('pendingCompanies')
-                             .where('status', '==', 'pending')
-                             .orderBy('requestedAt', 'desc')
-                             .get();
+    // --- MODIFICA CHIAVE ---
+    // Abbiamo rimosso la parte ".orderBy(...)" per rendere la query più semplice e
+    // per evitare errori se l'indice non è stato creato manualmente su Firestore.
+    // Leggiamo sia le aziende in pending che quelle attive.
     
-    // Se non ci sono documenti, restituiamo un array vuoto.
-    if (snapshot.empty) {
-      return res.status(200).json([]);
-    }
-
-    // Trasformiamo i documenti di Firestore in un array di oggetti JSON
+    const pendingSnapshot = await db.collection('pendingCompanies').get();
+    const activeSnapshot = await db.collection('activeCompanies').get();
+    
     const pendingCompanies = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      // Convertiamo il timestamp di Firestore in una stringa ISO (formato standard) se esiste
-      if (data.requestedAt) {
-        data.requestedAt = data.requestedAt.toDate().toISOString();
-      }
-      pendingCompanies.push({ id: doc.id, ...data });
+    pendingSnapshot.forEach(doc => {
+      pendingCompanies.push({ id: doc.id, ...doc.data() });
     });
 
-    // Restituiamo la lista di aziende in pending
-    res.status(200).json(pendingCompanies);
+    const activeCompanies = [];
+    activeSnapshot.forEach(doc => {
+      activeCompanies.push({ id: doc.id, ...doc.data() });
+    });
+
+    // Restituiamo un oggetto JSON ben formato con entrambe le liste
+    res.status(200).json({ pending: pendingCompanies, active: activeCompanies });
 
   } catch (error) {
-    console.error("Error fetching pending companies:", error);
+    console.error("Error fetching companies:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
