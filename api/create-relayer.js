@@ -28,16 +28,15 @@ export default async (req, res) => {
   try {
     const { companyId, companyStatus } = req.body;
     if (!companyId) {
-        return res.status(400).json({ error: "ID Azienda mancante." });
+      return res.status(400).json({ error: "ID Azienda mancante." });
     }
 
     // Controlliamo che tutte le variabili d'ambiente necessarie esistano
     const engineUrl = process.env.THIRDWEB_ENGINE_URL;
     const secretKey = process.env.THIRDWEB_SECRET_KEY;
-    const accessToken = process.env.THIRDWEB_VAULT_ACCESS_TOKEN; // Usiamo anche l'access token
 
-    if (!engineUrl || !secretKey || !accessToken) {
-        console.error("Variabili d'ambiente di Engine non configurate correttamente su Vercel.");
+    if (!engineUrl || !secretKey) {
+        console.error("ERRORE: Variabili d'ambiente di Engine (URL o SECRET_KEY) non configurate correttamente su Vercel.");
         throw new Error("Configurazione del server incompleta.");
     }
     
@@ -50,22 +49,19 @@ export default async (req, res) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${secretKey}`,
-          // Aggiungiamo l'access token per le operazioni sul vault
-          'x-thirdweb-access-token': accessToken,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({}), // Il corpo può essere vuoto
       }
     );
 
     const responseText = await engineResponse.text(); // Leggiamo la risposta come testo per sicurezza
-    console.log("Risposta da Engine:", responseText);
+    console.log(`Risposta da Engine: (Status: ${engineResponse.status})`, responseText);
 
     if (!engineResponse.ok) {
-        // Se la risposta non è JSON, la mostriamo direttamente
-        throw new Error(`Errore da Engine (${engineResponse.status}): ${responseText}`);
+        throw new Error(`Errore da Engine: ${responseText}`);
     }
 
-    const newWalletData = JSON.parse(responseText); // Ora possiamo parsare il JSON
+    const newWalletData = JSON.parse(responseText);
     const newWalletAddress = newWalletData.result.walletAddress;
 
     if (!newWalletAddress) {
@@ -86,7 +82,9 @@ export default async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Errore critico durante la creazione del relayer:", error);
-    res.status(500).json({ error: (error as Error).message || "Internal Server Error" });
+    // Gestione errore corretta per JavaScript
+    const errorMessage = error instanceof Error ? error.message : "Internal Server Error";
+    console.error("Errore critico durante la creazione del relayer:", errorMessage);
+    res.status(500).json({ error: errorMessage });
   }
 };
