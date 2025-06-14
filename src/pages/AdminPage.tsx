@@ -1,30 +1,46 @@
 // FILE: src/pages/AdminPage.tsx
-// Versione finale con modale interattiva per la gestione delle aziende.
+// QUESTA È LA VERSIONE FINALE CHE RISOLVE TUTTI GLI ERRORI DI BUILD
 
 import React, { useState, useEffect, useCallback } from "react";
-import { ConnectWallet, useAddress } from "@thirdweb-dev/react";
+import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
 import "../App.css";
 
+// Definizione del tipo per un'azienda per una migliore gestione in TypeScript
+type Company = {
+  id: string;
+  companyName: string;
+  contactEmail: string;
+  walletAddress: string;
+  status: 'active' | 'pending' | 'deactivated';
+  credits?: number;
+};
+
+// Indirizzo del contratto
+const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
+
+
 // --- Componente Modale per la Modifica ---
-const EditCompanyModal = ({ company, onClose, onUpdate }) => {
+const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, onClose: () => void, onUpdate: () => void }) => {
   const [credits, setCredits] = useState(company.credits || 50);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleAction = async (action) => {
+  // Aggiunto il tipo 'string' al parametro 'action'
+  const handleAction = async (action: string) => {
     setIsProcessing(true);
     try {
       const response = await fetch('/api/activate-company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, walletAddress: company.walletAddress, companyName: company.companyName, credits: parseInt(credits) }),
+        body: JSON.stringify({ action, walletAddress: company.walletAddress, companyName: company.companyName, credits: parseInt(String(credits)) }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      if (!response.ok) throw new Error(result.error || "Azione fallita");
       alert(result.message);
-      onUpdate(); // Chiama la funzione per ricaricare la lista
-      onClose(); // Chiude la modale
+      onUpdate();
+      onClose();
     } catch (error) {
-      alert(`Errore: ${error.message}`);
+      // Corretto: gestiamo l'errore di tipo 'unknown'
+      alert(`Errore: ${(error as Error).message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -45,7 +61,7 @@ const EditCompanyModal = ({ company, onClose, onUpdate }) => {
        onUpdate();
        onClose();
      } catch (error) {
-        alert(`Errore: ${error.message}`);
+        alert(`Errore: ${(error as Error).message}`);
      } finally {
         setIsProcessing(false);
      }
@@ -59,8 +75,8 @@ const EditCompanyModal = ({ company, onClose, onUpdate }) => {
         
         <div className="form-group">
             <label>Crediti</label>
-            <input type="number" value={credits} onChange={(e) => setCredits(e.target.value)} className="form-input" />
-            <button onClick={() => handleAction('setCredits')} disabled={isProcessing} className="web3-button" style={{marginTop: '0.5rem'}}>Imposta Crediti</button>
+            <input type="number" value={credits} onChange={(e) => setCredits(Number(e.target.value))} className="form-input" />
+            <button onClick={() => handleAction('setCredits')} disabled={isProcessing || company.status === 'pending'} className="web3-button" style={{marginTop: '0.5rem'}}>Imposta Crediti</button>
         </div>
         <hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
         <div className="modal-actions">
@@ -78,13 +94,12 @@ const EditCompanyModal = ({ company, onClose, onUpdate }) => {
 
 // --- Componente per la Lista delle Aziende ---
 const CompanyList = () => {
-    // ... Stessa logica di prima per caricare e filtrare i dati ...
-    const [allCompanies, setAllCompanies] = useState<any[]>([]);
-    const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
+    const [allCompanies, setAllCompanies] = useState<Company[]>([]);
+    const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
-    const [selectedCompany, setSelectedCompany] = useState(null);
+    const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
     const fetchCompanies = useCallback(async () => {
         setIsLoading(true);
@@ -93,7 +108,7 @@ const CompanyList = () => {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error);
             const pending = data.pending.map((p: any) => ({ ...p, status: 'pending' }));
-            const active = data.active.map((a: any) => ({ ...a, status: a.status || 'active' })); // Assicura che lo stato sia presente
+            const active = data.active.map((a: any) => ({ ...a, status: a.status || 'active' }));
             setAllCompanies([...pending, ...active]);
         } catch (error) { console.error("Errore caricamento aziende:", error); }
         setIsLoading(false);
@@ -117,9 +132,9 @@ const CompanyList = () => {
               </select>
             </div>
             <table className="company-table">
-                <thead><tr><th>Stato</th><th>Nome Azienda</th><th>Wallet</th><th>Azione</th></tr></thead>
+                <thead><tr><th>Stato</th><th>Nome Azienda</th><th>Wallet Address</th><th>Azione</th></tr></thead>
                 <tbody>
-                    {isLoading ? (<tr><td colSpan={4}>Caricamento...</td></tr>) : 
+                    {isLoading ? (<tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Caricamento...</td></tr>) : 
                     filteredCompanies.length > 0 ? (
                         filteredCompanies.map(c => (
                         <tr key={c.id}>
@@ -128,7 +143,7 @@ const CompanyList = () => {
                             <td><button onClick={() => setSelectedCompany(c)} className="web3-button" style={{padding: '0.5rem 1rem'}}>Gestisci</button></td>
                         </tr>
                         ))) : 
-                    (<tr><td colSpan={4}>Nessuna azienda trovata.</td></tr>)}
+                    (<tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Nessuna azienda trovata.</td></tr>)}
                 </tbody>
             </table>
             {selectedCompany && <EditCompanyModal company={selectedCompany} onClose={() => setSelectedCompany(null)} onUpdate={fetchCompanies} />}
@@ -136,11 +151,13 @@ const CompanyList = () => {
     );
 };
 
+
 // --- Componente Principale della Pagina Admin ---
 export default function AdminPage() {
     const address = useAddress();
-    const { data: superOwner } = useContractRead(useContract(contractAddress).contract, "superOwner");
-    const { data: owner } = useContractRead(useContract(contractAddress).contract, "owner");
+    const { contract } = useContract(contractAddress);
+    const { data: superOwner } = useContractRead(contract, "superOwner");
+    const { data: owner } = useContractRead(contract, "owner");
     const isAllowed = address && ( (superOwner && address.toLowerCase() === superOwner.toLowerCase()) || (owner && address.toLowerCase() === owner.toLowerCase()) );
 
     return (
@@ -152,9 +169,8 @@ export default function AdminPage() {
                 </header>
                 {!address ? <p>Connetti il tuo wallet...</p> : 
                 isAllowed ? <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div> : 
-                <h2>❌ ACCESSO NEGATO</h2>}
+                <h2 style={{ color: '#ef4444', fontSize: '2rem', marginTop: '4rem' }}>❌ ACCESSO NEGATO</h2>}
             </main>
         </div>
     );
 }
-
