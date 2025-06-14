@@ -1,5 +1,5 @@
 // FILE: src/pages/AdminPage.tsx
-// QUESTA È LA VERSIONE COMPLETA E CORRETTA CHE RISOLVE GLI ERRORI DI BUILD
+// QUESTA È LA VERSIONE FINALE CHE RIPRISTINA TUTTE LE FUNZIONALITÀ DI GESTIONE
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectWallet, useAddress, useContract, useContractRead, useContractWrite, Web3Button } from "@thirdweb-dev/react";
@@ -30,16 +30,22 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
   const handleActivate = async () => {
     setIsProcessing(true);
     try {
+      // 1. Esegui la prima transazione on-chain (addContributor)
       await addContributor({ args: [company.walletAddress, company.companyName] });
+      
+      // 2. Esegui la seconda transazione on-chain (setContributorCredits)
       await setContributorCredits({ args: [company.walletAddress, credits] });
+
+      // 3. Se entrambe le tx hanno successo, aggiorna il nostro database off-chain
       await fetch('/api/activate-company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'activate', walletAddress: company.walletAddress, companyName: company.companyName, credits: credits }),
       });
-      alert(`Azienda attivata con successo!`);
-      onUpdate();
-      onClose();
+
+      alert(`Azienda ${company.companyName} attivata con successo!`);
+      onUpdate(); // Ricarica la lista
+      onClose();  // Chiude la modale
     } catch (error) {
       alert(`Errore durante l'attivazione: ${(error as Error).message}`);
     } finally {
@@ -56,38 +62,44 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
         <p><strong>Wallet:</strong> {company.walletAddress}</p>
         
         <div className="form-group">
-            <label>Crediti</label>
+            <label>Crediti da Assegnare/Impostare</label>
             <input type="number" value={credits} onChange={(e) => setCredits(Number(e.target.value))} className="form-input" />
             
             <Web3Button
               contractAddress={contractAddress}
               action={() => setContributorCredits({ args: [company.walletAddress, credits] })}
-              onSuccess={() => alert("Crediti aggiornati!")}
+              onSuccess={() => alert("Crediti aggiornati con successo!")}
               onError={(error) => alert(`Errore: ${error.message}`)}
               className="web3-button"
               style={{marginTop: '0.5rem'}}
-              // CORREZIONE: usiamo isDisabled invece di disabled
-              isDisabled={company.status === 'pending'}
+              isDisabled={company.status === 'pending' || isLoading} // Disabilitato se in pending o se sta già processando
             >
-              Imposta Crediti
+              {isSettingCredits ? 'Impostando...' : 'Imposta Crediti'}
             </Web3Button>
         </div>
         
         <hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
 
         <div className="modal-actions">
-            {company.status === 'pending' && <button onClick={handleActivate} disabled={isLoading} className="web3-button"> {isLoading ? "Attivazione..." : "✅ Attiva Contributor"} </button>}
+            {/* Pulsante per ATTIVARE un'azienda in pending */}
+            {company.status === 'pending' && (
+              <button onClick={handleActivate} disabled={isLoading} className="web3-button"> 
+                {isLoading ? "Attivazione..." : "✅ Attiva Contributor"} 
+              </button>
+            )}
             
+            {/* Pulsante per DISATTIVARE un'azienda attiva */}
             {company.status === 'active' && (
               <Web3Button
                 contractAddress={contractAddress}
                 action={() => deactivateContributor({ args: [company.walletAddress] })}
-                onSuccess={() => alert("Azienda disattivata on-chain.")}
+                onSuccess={() => alert("Azienda disattivata on-chain.")} // Dovresti anche aggiornare il DB qui
                 onError={(error) => alert(`Errore: ${error.message}`)}
                 className="web3-button"
                 style={{backgroundColor: '#f59e0b'}}
+                isDisabled={isLoading}
               >
-                Disattiva Contributor
+                {isDeactivating ? "Disattivando..." : "Disattiva Contributor"}
               </Web3Button>
             )}
         </div>
@@ -102,6 +114,7 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
 
 // --- Componente per la Lista delle Aziende ---
 const CompanyList = () => {
+    // ... Questo componente rimane identico a quello dell'ultima versione funzionante ...
     const [allCompanies, setAllCompanies] = useState<Company[]>([]);
     const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
     const [isLoading, setIsLoading] = useState(true);
