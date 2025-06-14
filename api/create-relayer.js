@@ -1,5 +1,5 @@
 // FILE: api/create-relayer.js
-// VERSIONE DEFINITIVA: Usa la SECRET KEY per l'autenticazione, come richiesto dall'errore.
+// VERSIONE DEFINITIVA: Usa la VAULT ADMIN KEY per l'autenticazione, come richiesto.
 
 import admin from 'firebase-admin';
 
@@ -28,15 +28,16 @@ export default async (req, res) => {
   try {
     const { companyId, companyStatus } = req.body;
     if (!companyId) {
-      return res.status(400).json({ error: "ID Azienda mancante." });
+        return res.status(400).json({ error: "ID Azienda mancante." });
     }
 
     const engineUrl = process.env.THIRDWEB_ENGINE_URL;
-    // MODIFICA CHIAVE: Torniamo a usare la Secret Key principale, non quella del Vault.
-    const secretKey = process.env.THIRDWEB_SECRET_KEY; 
+    // MODIFICA CHIAVE: Usiamo la Vault Admin Key per questa operazione.
+    const adminKey = process.env.THIRDWEB_VAULT_ADMIN_KEY;
+    const clientId = process.env.THIRDWEB_CLIENT_ID;
 
-    if (!engineUrl || !secretKey) {
-        console.error("ERRORE: URL di Engine o SECRET_KEY non configurati su Vercel.");
+    if (!engineUrl || !adminKey || !clientId) {
+        console.error("ERRORE: Una o più variabili d'ambiente di Engine (URL, VAULT_ADMIN_KEY, CLIENT_ID) non sono configurate su Vercel.");
         throw new Error("Configurazione del server incompleta.");
     }
     
@@ -48,16 +49,14 @@ export default async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Usiamo la Secret Key come Bearer Token per autenticare il servizio.
-        'Authorization': `Bearer ${secretKey}`,
-        // Includiamo anche il Client ID, che è buona norma
-        'x-client-id': process.env.THIRDWEB_CLIENT_ID,
+        // Usiamo la Vault Admin Key come Bearer Token per autorizzare l'operazione
+        'Authorization': `Bearer ${adminKey}`,
+        'x-client-id': clientId,
       },
       body: JSON.stringify({}),
     });
 
     const responseText = await engineResponse.text();
-
     if (!engineResponse.ok) {
         throw new Error(`Errore da Engine (${engineResponse.status}): ${responseText}`);
     }
