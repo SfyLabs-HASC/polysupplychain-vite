@@ -1,5 +1,5 @@
 // FILE: api/send-email.js
-// QUESTA È LA VERSIONE FINALE E CORRETTA CHE FORMATTA L'EMAIL CORRETTAMENTE
+// AGGIORNATO: L'oggetto dell'email ora è personalizzato con il nome dell'azienda.
 
 import { Resend } from 'resend';
 import admin from 'firebase-admin';
@@ -45,16 +45,16 @@ export default async (req, res) => {
       ...socials,
     });
     
-    // --- Invio Email (CORRETTO) ---
+    // --- Invio Email (con Oggetto Aggiornato) ---
     const { data, error } = await resend.emails.send({
       from: 'Easy Chain <onboarding@resend.dev>',
       to: ['sfy.startup@gmail.com'],
-      subject: `Nuova Richiesta Attivazione: ${companyName}`,
-      // MODIFICA CHIAVE: Abbiamo inserito l'HTML vero e proprio qui sotto.
+      // MODIFICA CHIAVE: L'oggetto ora usa il nome dell'azienda per primo.
+      subject: `${companyName} - Richiesta Attivazione`,
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
           <h2>Nuova Richiesta di Attivazione</h2>
-          <p>Un'azienda ha richiesto l'attivazione sulla piattaforma Easy Chain.</p>
+          <p>L'azienda "${companyName}" ha richiesto l'attivazione sulla piattaforma Easy Chain.</p>
           <hr />
           <h3>Dettagli Richiesta:</h3>
           <ul style="list-style-type: none; padding: 0;">
