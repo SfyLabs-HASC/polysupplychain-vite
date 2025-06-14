@@ -1,8 +1,7 @@
 // FILE: src/pages/AdminPage.tsx
-// Pagina dedicata all'amministrazione con controllo degli accessi.
+// Corretto per rimuovere la proprietà "supportedWallets" non valida dal pulsante.
 
 import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
-import { metamaskWallet } from "@thirdweb-dev/react"; // Importiamo il wallet per l'admin
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
@@ -48,11 +47,10 @@ export default function AdminPage() {
       <p>Connetti il tuo wallet da amministratore per accedere.</p>
       
       <div style={{ margin: '2rem auto', display: 'inline-block' }}>
+        {/* MODIFICA: Rimuoviamo la proprietà "supportedWallets" che causava l'errore */}
         <ConnectWallet 
           theme="dark" 
           btnTitle="Connetti Wallet Admin"
-          // Limitiamo le opzioni di connessione solo ai wallet tradizionali
-          supportedWallets={[metamaskWallet()]}
         />
       </div>
 
