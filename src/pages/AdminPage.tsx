@@ -1,88 +1,69 @@
 // FILE: src/pages/AdminPage.tsx
-// Versione completa con dashboard, lista aziende, filtri e ricerca.
+// AGGIORNATO: Ora legge i dati reali dal contratto e rimuove i dati finti.
 
 import React, { useState, useEffect } from "react";
 import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
-import "../App.css"; // Usiamo gli stili globali
+import "../App.css";
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
-// --- SIMULAZIONE DATABASE OFF-CHAIN ---
-// In un'applicazione reale, questi dati proverrebbero da un tuo database (es. Firebase, Supabase, etc.)
-// dove salvi le richieste che ricevi via email.
-const pendingCompaniesMock = [
-  {
-    id: 'pending-1',
-    companyName: "Caseificio La Perla",
-    contactEmail: "info@caseificioperla.it",
-    walletAddress: "0xAbC...123",
-    status: 'pending' as const, // Usiamo 'as const' per una tipizzazione più forte
-  },
-  {
-    id: 'pending-2',
-    companyName: "Vigneti Rossi",
-    contactEmail: "info@vignetirossi.com",
-    walletAddress: "0xDeF...456",
-    status: 'pending' as const,
-  }
-];
+// --- LISTA AZIENDE IN PENDING (ORA VUOTA) ---
+// In un'applicazione reale, questi dati proverrebbero da un tuo database (Firebase, Supabase, etc.)
+const pendingCompanies = []; // Non inventiamo più dati!
 
-// --- COMPONENTE PER LA LISTA DELLE AZIENDE ---
-// Questo componente legge i dati dal contratto e li unisce a quelli del nostro "database" finto.
-const CompanyList = () => {
+// --- NUOVO COMPONENTE: Riga per una singola azienda attiva ---
+// Questo componente si occupa di caricare e mostrare i dati di UNA SOLA azienda attiva.
+const ActiveCompanyRow = ({ address }: { address: string }) => {
   const { contract } = useContract(contractAddress);
   
-  // Per ora, leggiamo una lista di aziende "attive" che inseriamo manualmente qui.
-  // In futuro, questo verrebbe da un evento o da un indexer.
+  // Usiamo useContractRead per leggere i dati di QUESTA specifica azienda dal contratto
+  const { data: contributorInfo, isLoading } = useContractRead(
+    contract,
+    "getContributorInfo",
+    [address]
+  );
+
+  if (isLoading) {
+    return (
+      <tr>
+        <td>✅</td>
+        <td colSpan={3}>Caricamento dati on-chain...</td>
+      </tr>
+    );
+  }
+
+  // Estraiamo il nome reale dal contratto (è il primo elemento dell'array restituito)
+  const companyName = contributorInfo?.[0] || "Nome non trovato";
+
+  return (
+    <tr className="clickable-row">
+      <td>✅</td>
+      <td>{companyName}</td>
+      <td>{address}</td>
+      <td>/</td> {/* Come richiesto, mettiamo "/" per l'email */}
+    </tr>
+  );
+};
+
+
+// --- COMPONENTE PER LA LISTA DELLE AZIENDE ---
+const CompanyList = () => {
+  // --- LISTA STATICA DEGLI INDIRIZZI ATTIVI ---
+  // In un'app reale, avresti un tuo sistema per sapere quali indirizzi hai attivato.
+  // Per ora, inseriamo qui manualmente l'indirizzo che hai attivato.
   const activeCompanyAddresses = [
-      "0x4Fe787C456CD58b03Aa33097CDA19F80893DB96F", // Esempio di un'azienda già attivata
-      // Aggiungi qui altri indirizzi di aziende attive
+      "0x4Fe787C456CD58b03Aa33097CDA19F80893DB96F",
+      // Se attivi altre aziende, aggiungi i loro indirizzi qui
   ];
 
   // Stati per la ricerca e il filtro
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  // Qui useremo i dati finti. In un'app reale, questi verrebbero da chiamate API.
-  const [allCompanies, setAllCompanies] = useState<any[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<any[]>([]);
-
-  useEffect(() => {
-    // Simula il caricamento dei dati
-    // Nota: in un'app reale, qui faresti una chiamata per ottenere i dati on-chain.
-    // Per ora, creiamo una lista fittizia.
-    const activeCompanies = activeCompanyAddresses.map(addr => ({
-      id: addr,
-      companyName: `Azienda Attiva ${addr.slice(0,6)}`, // Nome fittizio
-      contactEmail: "onchain@email.com",
-      walletAddress: addr,
-      status: 'active' as const,
-    }));
-    
-    // Escludiamo dalle pending quelle già attivate
-    const uniquePending = pendingCompaniesMock.filter(p => !activeCompanyAddresses.includes(p.walletAddress));
-
-    setAllCompanies([...activeCompanies, ...uniquePending]);
-  }, []);
-
-  useEffect(() => {
-    let companies = [...allCompanies];
-
-    // Applica filtro per stato
-    if (filterStatus !== "all") {
-      companies = companies.filter(c => c.status === filterStatus);
-    }
-
-    // Applica filtro per nome
-    if (searchTerm) {
-      companies = companies.filter(c => 
-        c.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    setFilteredCompanies(companies);
-  }, [searchTerm, filterStatus, allCompanies]);
-
+  // Per ora, la lista filtrata conterrà solo i dati delle aziende attive.
+  // La ricerca e il filtro verranno applicati in futuro quando avremo più dati.
+  // Questo è un punto di partenza per una logica più complessa.
+  
   return (
     <div style={{ marginTop: '2rem' }}>
       <div className="filters-container">
@@ -116,16 +97,18 @@ const CompanyList = () => {
           </tr>
         </thead>
         <tbody>
-          {filteredCompanies.map(company => (
-            <tr key={company.id} className="clickable-row">
-              <td>
-                {company.status === 'active' ? '✅' : '⏳'}
-              </td>
-              <td>{company.companyName}</td>
-              <td>{company.walletAddress}</td>
-              <td>{company.contactEmail}</td>
-            </tr>
+          {/* Mostriamo solo le aziende attive se il filtro è 'all' o 'active' */}
+          {(filterStatus === 'all' || filterStatus === 'active') && 
+            activeCompanyAddresses.map(address => (
+              <ActiveCompanyRow key={address} address={address} />
           ))}
+
+          {/* Qui in futuro potremmo mostrare le aziende in pending dal database */}
+          {pendingCompanies.length === 0 && (filterStatus === 'all' || filterStatus === 'pending') && (
+            <tr>
+              <td colSpan={4} style={{textAlign: 'center', padding: '1rem', color: '#a0a0a0'}}>Nessuna richiesta di attivazione in sospeso.</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -147,12 +130,10 @@ export default function AdminPage() {
     <div className="app-container">
       <main className="main-content" style={{width: '100%', padding: '2rem 4rem'}}>
         <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          {/* MODIFICATO: Spostiamo il titolo qui */}
           <h1 className="page-title">Pannello Amministrazione</h1>
           <ConnectWallet theme="dark" btnTitle="Connetti"/>
         </header>
 
-        {/* Controllo accesso */}
         {!address ? (
           <p>Connetti il tuo wallet da amministratore per accedere.</p>
         ) : (isSuperOwner || isOwner) ? (
