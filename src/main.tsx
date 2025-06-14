@@ -1,17 +1,20 @@
 // FILE: src/main.tsx
-// CORRETTO: Risolto l'errore di battitura nell'import di AdminPage.
+// AGGIORNATO: Ora supporta SOLO In-App Wallets (Social/Email) per l'intera applicazione.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThirdwebProvider } from "@thirdweb-dev/react";
 import "./index.css";
+import "./App.css";
 
-import { inAppWallet, metamaskWallet, coinbaseWallet, walletConnect } from "@thirdweb-dev/react";
+// Importiamo SOLO il tipo di wallet che vogliamo supportare
+import { inAppWallet } from "@thirdweb-dev/react";
 
+// Importiamo i nostri componenti di pagina
 import HomePage from "./pages/HomePage";
 import AziendaPage from "./pages/AziendaPage";
-import AdminPage from "./pages/AdminPage"; // <-- CORREZIONE: Era "./pages.AdminPage"
+import AdminPage from "./pages/AdminPage";
 
 const container = document.getElementById("root");
 const root = createRoot(container!);
@@ -22,11 +25,11 @@ root.render(
       <ThirdwebProvider
         activeChain="polygon"
         clientId="e40dfd747fabedf48c5837fb79caf2eb"
+        // MODIFICA CHIAVE:
+        // L'array ora contiene solo inAppWallet(). Questo si applicherà
+        // a tutti i pulsanti ConnectWallet del sito.
         supportedWallets={[
           inAppWallet(),
-          metamaskWallet(),
-          coinbaseWallet(),
-          walletConnect(),
         ]}
       >
         <Routes>
