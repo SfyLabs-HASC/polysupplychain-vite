@@ -1,5 +1,5 @@
 // FILE: api/create-relayer.js
-// Questo endpoint crea un wallet backend dedicato tramite thirdweb Engine.
+// VERSIONE REALE E CORRETTA: Usa le chiavi corrette e ha una gestione degli errori migliore.
 
 import admin from 'firebase-admin';
 
@@ -31,29 +31,41 @@ export default async (req, res) => {
         return res.status(400).json({ error: "ID Azienda mancante." });
     }
 
-    if (!process.env.THIRDWEB_ENGINE_URL || !process.env.THIRDWEB_SECRET_KEY) {
-        throw new Error("Configurazione di Engine non trovata sul server.");
+    // Controlliamo che tutte le variabili d'ambiente necessarie esistano
+    const engineUrl = process.env.THIRDWEB_ENGINE_URL;
+    const secretKey = process.env.THIRDWEB_SECRET_KEY;
+    const accessToken = process.env.THIRDWEB_VAULT_ACCESS_TOKEN; // Usiamo anche l'access token
+
+    if (!engineUrl || !secretKey || !accessToken) {
+        console.error("Variabili d'ambiente di Engine non configurate correttamente su Vercel.");
+        throw new Error("Configurazione del server incompleta.");
     }
     
     // --- 1. Chiamata API REALE a thirdweb Engine per creare un nuovo wallet ---
+    console.log("Tentativo di creare un wallet su Engine...");
     const engineResponse = await fetch(
-      `${process.env.THIRDWEB_ENGINE_URL}/backend-wallet/create`,
+      `${engineUrl}/backend-wallet/create`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.THIRDWEB_SECRET_KEY}`,
+          'Authorization': `Bearer ${secretKey}`,
+          // Aggiungiamo l'access token per le operazioni sul vault
+          'x-thirdweb-access-token': accessToken,
         },
         body: JSON.stringify({}),
       }
     );
 
+    const responseText = await engineResponse.text(); // Leggiamo la risposta come testo per sicurezza
+    console.log("Risposta da Engine:", responseText);
+
     if (!engineResponse.ok) {
-        const errorBody = await engineResponse.json();
-        throw new Error(`Errore da Engine: ${errorBody.error.message}`);
+        // Se la risposta non è JSON, la mostriamo direttamente
+        throw new Error(`Errore da Engine (${engineResponse.status}): ${responseText}`);
     }
 
-    const newWalletData = await engineResponse.json();
+    const newWalletData = JSON.parse(responseText); // Ora possiamo parsare il JSON
     const newWalletAddress = newWalletData.result.walletAddress;
 
     if (!newWalletAddress) {
@@ -68,16 +80,13 @@ export default async (req, res) => {
       relayerWalletAddress: newWalletAddress
     });
 
-    // --- (Opzionale) 3. Finanzia il nuovo wallet ---
-    console.log(`Azione successiva (da implementare): Finanziare ${newWalletAddress} con MATIC.`);
-
     res.status(200).json({ 
         message: `Wallet Relayer creato e assegnato con successo!`,
         relayerAddress: newWalletAddress 
     });
 
   } catch (error) {
-    console.error("Errore durante la creazione del relayer:", error);
+    console.error("Errore critico durante la creazione del relayer:", error);
     res.status(500).json({ error: (error as Error).message || "Internal Server Error" });
   }
 };
