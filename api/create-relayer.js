@@ -1,5 +1,5 @@
 // FILE: api/create-relayer.js
-// AGGIORNATO: Ora usa la VAULT_ADMIN_KEY per l'autenticazione, che è più sicura e corretta.
+// VERSIONE DEFINITIVA: Usa la Vault Admin Key per l'autenticazione, come richiesto da Engine.
 
 import admin from 'firebase-admin';
 
@@ -28,31 +28,31 @@ export default async (req, res) => {
   try {
     const { companyId, companyStatus } = req.body;
     if (!companyId) {
-      return res.status(400).json({ error: "ID Azienda mancante." });
+        return res.status(400).json({ error: "ID Azienda mancante." });
     }
 
-    // Controlliamo le variabili d'ambiente necessarie
     const engineUrl = process.env.THIRDWEB_ENGINE_URL;
-    const adminKey = process.env.THIRDWEB_VAULT_ADMIN_KEY; // <-- USIAMO LA CHIAVE ADMIN
+    // MODIFICA CHIAVE: Ora usiamo la chiave corretta per questa operazione.
+    const adminKey = process.env.THIRDWEB_VAULT_ADMIN_KEY;
 
     if (!engineUrl || !adminKey) {
         console.error("ERRORE: URL di Engine o VAULT_ADMIN_KEY non configurati su Vercel.");
         throw new Error("Configurazione del server incompleta.");
     }
     
+    const cleanedEngineUrl = engineUrl.replace(/\/$/, ""); 
+    const fullEndpointUrl = `${cleanedEngineUrl}/backend-wallet/create`;
+
     // --- Chiamata API REALE a thirdweb Engine ---
-    const engineResponse = await fetch(
-      `${engineUrl}/backend-wallet/create`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Usiamo la Vault Admin Key per autorizzare questa operazione privilegiata
-          'Authorization': `Bearer ${adminKey}`, 
-        },
-        body: JSON.stringify({}),
-      }
-    );
+    const engineResponse = await fetch(fullEndpointUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Usiamo la Vault Admin Key per autorizzare questa operazione privilegiata
+        'Authorization': `Bearer ${adminKey}`, 
+      },
+      body: JSON.stringify({}),
+    });
 
     const responseText = await engineResponse.text();
     if (!engineResponse.ok) {
