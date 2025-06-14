@@ -1,5 +1,5 @@
 // FILE: src/main.tsx
-// AGGIORNATO: Ora supporta SOLO In-App Wallets (Social/Email) per l'intera applicazione.
+// Configura l'app per usare SOLO i social login.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -25,9 +25,7 @@ root.render(
       <ThirdwebProvider
         activeChain="polygon"
         clientId="e40dfd747fabedf48c5837fb79caf2eb"
-        // MODIFICA CHIAVE:
-        // L'array ora contiene solo inAppWallet(). Questo si applicherà
-        // a tutti i pulsanti ConnectWallet del sito.
+        // Lista globale: solo social login abilitati per tutto il sito.
         supportedWallets={[
           inAppWallet(),
         ]}

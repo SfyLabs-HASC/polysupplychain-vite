@@ -1,38 +1,38 @@
 // FILE: src/pages/AdminPage.tsx
-// AGGIORNATO: Il login ora è limitato SOLO ai wallet crypto tradizionali.
+// Versione completa e corretta.
 
 import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
-// Importiamo i wallet che vogliamo mostrare all'admin
-import { metamaskWallet, coinbaseWallet, walletConnect } from "@thirdweb-dev/react";
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
-// ... Il componente AdminDashboard rimane identico ...
+// Componente che renderizza il contenuto dell'admin
+const AdminDashboard = () => {
+  const address = useAddress();
+  const { contract } = useContract(contractAddress);
+  const { data: superOwner } = useContractRead(contract, "superOwner");
+  const { data: owner } = useContractRead(contract, "owner");
+  
+  const isSuperOwner = address && superOwner && address.toLowerCase() === superOwner.toLowerCase();
+  const isOwner = address && owner && address.toLowerCase() === owner.toLowerCase();
 
+  if (isSuperOwner || isOwner) {
+    return <h2 style={{ color: '#34d399', fontSize: '2rem' }}>✅ ACCESSO CONSENTITO</h2>;
+  }
+  return <h2 style={{ color: '#ef4444', fontSize: '2rem' }}>❌ ACCESSO NEGATO</h2>;
+};
+
+// Componente principale della pagina
 export default function AdminPage() {
   const address = useAddress();
-
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif', backgroundColor: '#0a0a0a', color: 'white', minHeight: '100vh', textAlign: 'center' }}>
       <h1>Pannello Amministrazione</h1>
-      <p>Connetti il tuo wallet da amministratore per accedere.</p>
-      
+      <p>Connetti il tuo wallet per accedere.</p>
       <div style={{ margin: '2rem auto', display: 'inline-block' }}>
-        {/* MODIFICA CHIAVE: Il pulsante ora mostra solo wallet tradizionali */}
-        <ConnectWallet 
-          theme="dark" 
-          btnTitle="Connetti Wallet Admin"
-          wallets={[
-            metamaskWallet(),
-            coinbaseWallet(),
-            walletConnect(),
-          ]}
-        />
+        {/* Questo pulsante ora userà la configurazione globale di main.tsx */}
+        <ConnectWallet theme="dark" btnTitle="Connetti"/>
       </div>
-
       {address && <AdminDashboard />}
     </div>
   );
 }
-
-// Assicurati di avere il codice completo del componente AdminDashboard qui sotto.
