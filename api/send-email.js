@@ -1,6 +1,5 @@
 // FILE: api/send-email.js
-// Questa è la nostra funzione serverless sicura che invia l'email.
-// Vercel la trasformerà automaticamente in un endpoint API.
+// Corretto per inviare l'email come HTML e non come testo semplice.
 
 import { Resend } from 'resend';
 
@@ -25,8 +24,8 @@ export default async (req, res) => {
       from: 'PolySupplyChain <onboarding@resend.dev>', // Mittente speciale per il piano gratuito
       to: ['sfy.startup@gmail.com'], // La tua email di destinazione
       subject: `Nuova Richiesta Attivazione: ${companyName}`,
-      // Usiamo React per creare un'email HTML ben formattata
-      react: `
+      // MODIFICA CHIAVE: Usiamo 'html' invece di 'react' per inviare la stringa HTML
+      html: `
         <div>
           <h2>Nuova Richiesta di Attivazione</h2>
           <p>Un'azienda ha richiesto l'attivazione sulla piattaforma.</p>
