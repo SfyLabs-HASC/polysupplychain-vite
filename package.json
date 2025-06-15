@@ -1,5 +1,5 @@
 {
-  "name": "polysupplychain-sequence",
+  "name": "polysupplychain-vite",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@0xsequence/kit": "^1.21.0",
-    "@0xsequence/wagmi-connector": "^1.21.0",
+    "@0xsequence/kit": "^1.19.0",
+    "@0xsequence/wagmi-connector": "^1.19.0",
     "firebase-admin": "^12.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
