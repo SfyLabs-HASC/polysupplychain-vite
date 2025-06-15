@@ -12,6 +12,7 @@
   "dependencies": {
     "@0xsequence/kit": "^2.0.12",
     "@0xsequence/wagmi-connector": "^2.0.12",
+    "@0xsequence/waas": "^1.10.9",
     "@react-oauth/google": "^0.12.1",
     "@tanstack/react-query": "^5.45.1",
     "0xsequence": "^1.10.15",
