@@ -1,8 +1,10 @@
+// ========================================================================
 // FILE: src/pages/HomePage.tsx
-// Questa è la nuova pagina di presentazione del servizio.
+// SCOPO: Pagina di benvenuto statica con i link alle altre sezioni.
+// ========================================================================
 
 import { Link } from "react-router-dom";
-import "../App.css"; // Usiamo gli stessi stili
+import "../App.css";
 
 export default function HomePage() {
   return (
@@ -17,11 +19,15 @@ export default function HomePage() {
         </p>
         
         <div style={{ marginTop: '3rem' }}>
-          {/* Questo è un link che porta alla pagina di login/registrazione delle aziende */}
           <Link to="/azienda">
             <button className="web3-button">
               ISCRIVITI / ACCEDI
             </button>
+          </Link>
+        </div>
+        <div style={{ marginTop: '1rem' }}>
+          <Link to="/admin" style={{color: '#a0a0a0', fontSize: '0.9rem'}}>
+            Accesso Amministratore
           </Link>
         </div>
       </main>

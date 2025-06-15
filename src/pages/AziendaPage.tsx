@@ -1,16 +1,20 @@
+// ========================================================================
 // FILE: src/pages/AziendaPage.tsx
-// Versione completa e corretta che include tutti i suoi componenti interni.
+// SCOPO: Portale per le aziende, con form di registrazione o dashboard.
+// ========================================================================
 
 import React, { useState } from "react";
-import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
+import { useAccount, useReadContract } from 'wagmi';
+import { KitConnectButton } from '@0xsequence/kit';
+import { abi } from '../abi/SupplyChainV2.json';
 import "../App.css";
 
-const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
+const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302" as const;
 
-// === Componente 1: Form di Registrazione ===
+// --- Componente: Form di Registrazione ---
 const RegistrationForm = () => {
-  const address = useAddress();
-  const [formData, setFormData] = useState({ companyName: "", contactEmail: "", sector: "", website: "", facebook: "", instagram: "", twitter: "", tiktok: "" });
+  const { address } = useAccount();
+  const [formData, setFormData] = useState({ companyName: "", contactEmail: "", sector: "", website: "" });
   const [isSending, setIsSending] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -21,12 +25,12 @@ const RegistrationForm = () => {
     setIsSending(true);
     try {
       const response = await fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, walletAddress: address }) });
-      if (response.ok) { alert('✅ Richiesta inviata con successo!'); } else { throw new Error('Errore del server.'); }
+      if (response.ok) { alert('✅ Richiesta inviata con successo! Verrai contattato a breve.'); } else { throw new Error('Errore del server.'); }
     } catch (error) { alert('❌ Si è verificato un errore.'); } finally { setIsSending(false); }
   };
 
   const settori = ["Agricoltura e Allevamento", "Alimentare e Bevande", "Moda e Tessile", "Arredamento e Design", "Cosmetica e Farmaceutica", "Artigianato", "Tecnologia ed Elettronica", "Altro"];
-
+  
   return (
     <div className="card">
       <h3>Benvenuto su Easy Chain!</h3>
@@ -37,17 +41,13 @@ const RegistrationForm = () => {
         <div className="form-group"><label htmlFor="sector">Settore <span style={{color: 'red'}}>*</span></label><select id="sector" name="sector" onChange={handleInputChange} className="form-input" required><option value="">Seleziona...</option>{settori.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
         <hr style={{ margin: '2rem 0', borderColor: '#27272a' }} />
         <div className="form-group"><label htmlFor="website">Sito Web (Opzionale)</label><input id="website" type="url" name="website" onChange={handleInputChange} className="form-input" /></div>
-        <div className="form-group"><label htmlFor="facebook">Facebook (Opzionale)</label><input id="facebook" type="url" name="facebook" onChange={handleInputChange} className="form-input" /></div>
-        <div className="form-group"><label htmlFor="instagram">Instagram (Opzionale)</label><input id="instagram" type="url" name="instagram" onChange={handleInputChange} className="form-input" /></div>
-        <div className="form-group"><label htmlFor="twitter">Twitter / X (Opzionale)</label><input id="twitter" type="url" name="twitter" onChange={handleInputChange} className="form-input" /></div>
-        <div className="form-group"><label htmlFor="tiktok">TikTok (Opzionale)</label><input id="tiktok" type="url" name="tiktok" onChange={handleInputChange} className="form-input" /></div>
         <button type="submit" className="web3-button" disabled={isSending}>{isSending ? 'Invio...' : 'Invia Richiesta'}</button>
       </form>
     </div>
   );
 };
 
-// === Componente 2: Dashboard per l'utente attivo ===
+// --- Componente: Dashboard per l'Utente Attivo ---
 const ActiveUserDashboard = () => (
   <div className="card">
     <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
@@ -55,15 +55,22 @@ const ActiveUserDashboard = () => (
   </div>
 );
 
-// === Componente principale della pagina ===
+// --- Componente Principale della Pagina Aziende ---
 export default function AziendaPage() {
-  const address = useAddress();
-  const { contract } = useContract(contractAddress);
-  const { data: contributorInfo, isLoading: isLoadingStatus } = useContractRead(contract, "getContributorInfo", [address]);
-  const isContributorActive = contributorInfo?.[2] === true;
+  const { address, isConnected } = useAccount();
+
+  const { data: contributorInfo, isLoading: isLoadingStatus } = useReadContract({
+    address: contractAddress,
+    abi: abi,
+    functionName: 'getContributorInfo',
+    args: [address],
+    query: { enabled: isConnected }
+  });
+
+  const isContributorActive = (contributorInfo as any)?.[2] === true;
 
   const renderContent = () => {
-    if (!address) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Connettiti per iniziare.</p>;
+    if (!isConnected) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Connettiti per iniziare.</p>;
     if (isLoadingStatus) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato...</p>;
     return isContributorActive ? <ActiveUserDashboard /> : <RegistrationForm />;
   };
@@ -72,13 +79,10 @@ export default function AziendaPage() {
     <div className="app-container">
       <aside className="sidebar">
         <div className="sidebar-header"><h1 className="sidebar-title">Easy Chain</h1></div>
-        {address && (<div className="user-info"><p><strong>Wallet Connesso:</strong></p><p>{address}</p><hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/><p><strong>Crediti:</strong></p><p>{isLoadingStatus ? "..." : contributorInfo?.[1].toString() || "N/A"}</p></div>)}
+        {isConnected && (<div className="user-info"><p><strong>Wallet Connesso:</strong></p><p>{address}</p><hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/><p><strong>Crediti:</strong></p><p>{isLoadingStatus ? "..." : (contributorInfo as any)?.[1]?.toString() || "N/A"}</p></div>)}
       </aside>
       <main className="main-content">
-        <header className="header">
-          {/* Questo pulsante ora userà la configurazione globale di main.tsx */}
-          <ConnectWallet theme="dark" btnTitle="Accedi / Iscriviti" modalSize="compact"/>
-        </header>
+        <header className="header"><KitConnectButton /></header>
         <h2 className="page-title">Portale Aziende</h2>
         {renderContent()}
       </main>
