@@ -12,8 +12,10 @@
   "dependencies": {
     "@0xsequence/kit": "^2.0.12",
     "@0xsequence/wagmi-connector": "^2.0.12",
+    "@react-oauth/google": "^0.12.1",
     "@tanstack/react-query": "^5.45.1",
     "0xsequence": "^1.10.15",
+    "ethers": "^5.7.2",
     "firebase-admin": "^12.1.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
