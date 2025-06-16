@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE E COMPLETA CHE CORREGGE LA LOGICA DI CONTROLLO
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
@@ -202,17 +202,22 @@ export default function AziendaPage() {
 
       setIsLoading(true);
       try {
-        // CORREZIONE CHIAVE: Usiamo la sintassi completa e corretta per la firma della funzione.
+        // CORREZIONE CHIAVE: Usiamo la sintassi corretta per la firma della funzione.
+        // L'SDK V5 è molto preciso sulla sintassi.
         const data = await readContract({
           contract,
           abi,
-          method: "function getContributorInfo(address _contributorAddress) view returns (tuple(string name, uint256 credits, bool isActive))",
+          method: "getContributorInfo", // Usiamo solo il nome, l'ABI farà il resto
           params: [account.address]
         });
         
-        // Ora accediamo ai dati come proprietà di un oggetto, non più con gli indici
-        setIsActive(data.isActive);
-        setCredits(data.credits.toString());
+        // CORREZIONE CHIAVE: la risposta è un array, non un oggetto.
+        // Accediamo ai dati con gli indici: [0] = nome, [1] = crediti, [2] = isActive
+        const contributorIsActive = data[2];
+        const contributorCredits = data[1].toString();
+
+        setIsActive(contributorIsActive);
+        setCredits(contributorCredits);
 
       } catch (e) {
         // Questo errore è normale se l'utente non è ancora stato registrato.
