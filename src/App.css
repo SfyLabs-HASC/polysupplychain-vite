@@ -1,113 +1,204 @@
+/* FILE: src/App.css */
+/* Stili per la nuova interfaccia Easy Chain */
+
+/* Importiamo un font pulito da Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Reset di base e stile del corpo */
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
-  background: #f5f5f5;
+  font-family: 'Inter', sans-serif;
+  background-color: #0a0a0a; /* Sfondo molto scuro */
+  color: #e0e0e0; /* Testo quasi bianco */
 }
 
+/* Contenitore principale dell'app con layout a due colonne */
 .app-container {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
 }
 
+/* --- Sidebar a Sinistra --- */
 .sidebar {
-  background: #111827;
-  color: white;
-  padding: 1rem;
-  width: 260px;
+  width: 280px;
+  background-color: #121212; /* Sfondo leggermente più chiaro */
+  padding: 2rem;
+  border-right: 1px solid #27272a; /* Bordo sottile di separazione */
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  margin-bottom: 3rem;
 }
 
 .sidebar-title {
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
 }
 
 .user-info {
+  margin-top: auto; /* Spinge questa sezione in fondo alla sidebar */
   font-size: 0.9rem;
 }
 
+.user-info p {
+  margin: 0.5rem 0;
+  word-wrap: break-word; /* Va a capo se l'indirizzo è lungo */
+}
+
+.user-info strong {
+  color: #a0a0a0;
+}
+
+
+/* --- Area Principale a Destra --- */
 .main-content {
-  flex: 1;
-  padding: 2rem;
+  flex-grow: 1; /* Occupa tutto lo spazio rimanente */
+  padding: 2rem 4rem;
 }
 
 .header {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
+  justify-content: flex-end; /* Allinea il pulsante del wallet a destra */
+  margin-bottom: 2rem;
 }
 
 .page-title {
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-}
-
-.card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.form-input {
-  width: 100%;
-  padding: 0.6rem;
-  margin: 0.5rem 0;
-  border-radius: 0.4rem;
-  border: 1px solid #ccc;
-}
-
-.web3-button {
-  background: #2563eb;
+  font-size: 2rem;
+  font-weight: 700;
   color: white;
-  padding: 0.6rem 1rem;
-  border: none;
-  border-radius: 0.4rem;
-  cursor: pointer;
-  margin-top: 1rem;
-}
-.web3-button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+  margin-bottom: 2rem;
 }
 
+/* --- Stile per le Card e i Form --- */
+.card {
+  background-color: #18181b; /* Sfondo delle card */
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #27272a;
+}
+
+.card h3 {
+  margin-top: 0;
+  color: white;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #a0a0a0;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: #27272a;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 1rem;
+  box-sizing: border-box; /* Assicura che il padding non cambi la larghezza */
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #4f46e5; /* Blu/viola per il focus */
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Stile per il Web3Button e altri pulsanti */
+.web3-button {
+  background-color: #4f46e5 !important;
+  color: white !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 8px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s !important;
+  border: none;
+  cursor: pointer;
+}
+
+.web3-button:hover {
+  background-color: #4338ca !important;
+}
+
+.web3-button:disabled {
+    background-color: #3730a3 !important;
+    cursor: not-allowed;
+}
+
+
+/* Stili aggiuntivi per AdminPage */
+.filters-container {
+  margin-bottom: 2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.company-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.company-table th, .company-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #27272a;
+}
+
+.company-table th {
+  color: #a0a0a0;
+  font-weight: 500;
+}
+
+.company-table tbody tr.clickable-row:hover,
+.company-table tbody tr:hover {
+  background-color: #18181b;
+}
+
+.company-table td {
+  vertical-align: middle;
+}
+
+/* Stili per la Modale di modifica */
 .modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
   display: flex;
-  align-items: center;
   justify-content: center;
-}
-
-.modal-card {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
+  z-index: 1000;
 }
-
-.close-button {
-  background: transparent;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
+.modal-content {
+  background-color: #18181b;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #27272a;
+  width: 90%;
+  max-width: 500px;
 }
-
-.modal-body {
-  margin-top: 1rem;
-}
-
 .modal-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
 }
