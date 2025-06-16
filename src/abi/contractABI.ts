@@ -258,5 +258,4 @@ const contractABI = [
   }
 ];
 
-import abi from "../abi/contractABI";
-
+export default contractABI;
