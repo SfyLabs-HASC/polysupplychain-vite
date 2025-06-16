@@ -1,4 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
+import abi from "../abi/contractABI";
 
 import React, { useState, useEffect } from "react";
 import {
