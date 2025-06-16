@@ -1,24 +1,14 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE STABILE PRECEDENTE (thirdweb V4) CHE FUNZIONAVA
+// QUESTA È LA VERSIONE FINALE E COMPLETA CHE RISOLVE L'ERRORE.
 
-import React, { useState, useEffect, useCallback } from "react";
-import { ConnectWallet, Web3Button, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
-import { supplyChainABI as abi } from "../abi/contractABI"; // Usiamo il nostro file ABI TypeScript
-import "../App.css";
-
-// Definizione del tipo per un'azienda
-type Company = {
-  id: string;
-  companyName: string;
-  walletAddress: string;
-  status: 'active' | 'pending' | 'deactivated';
-  credits?: number;
-  contactEmail?: string;
-};
+import React, { useState } from "react";
+import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
+import "../App.css"; // Assicurati di avere il file App.css con gli stili
 
 const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
-// --- Componente: Form di Registrazione (Completo) ---
+// === COMPONENTE 1: FORM DI REGISTRAZIONE ===
+// Definizione completa del componente che mancava.
 const RegistrationForm = () => {
   const address = useAddress();
   const [formData, setFormData] = useState({
@@ -38,20 +28,23 @@ const RegistrationForm = () => {
       return;
     }
     setIsSending(true);
+
     try {
       const response = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, walletAddress: address }),
       });
+
       if (response.ok) {
         alert('✅ Richiesta inviata con successo! Verrai contattato a breve.');
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Errore del server.');
+        throw new Error('La risposta del server non è stata positiva.');
       }
+
     } catch (error) {
-      alert(`❌ Si è verificato un errore: ${(error as Error).message}`);
+      console.error('FAILED...', error);
+      alert('❌ Si è verificato un errore. Riprova più tardi.');
     } finally {
       setIsSending(false);
     }
@@ -62,62 +55,55 @@ const RegistrationForm = () => {
   return (
     <div className="card">
       <h3>Benvenuto su Easy Chain!</h3>
-      <p>Il tuo account non è ancora attivo. Compila queste informazioni per inviare una richiesta di attivazione al nostro team.</p>
-      <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem' }}>
-        <div className="form-group"><label>Nome azienda <span style={{color: 'red'}}>*</span></label><input type="text" name="companyName" onChange={handleInputChange} className="form-input" required /></div>
-        <div className="form-group"><label>Email contatto <span style={{color: 'red'}}>*</span></label><input type="email" name="contactEmail" onChange={handleInputChange} className="form-input" required /></div>
-        <div className="form-group"><label>Settore <span style={{color: 'red'}}>*</span></label><select name="sector" onChange={handleInputChange} className="form-input" required><option value="">Seleziona...</option>{settori.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+      <p>Per attivare il tuo account compila queste informazioni:</p>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group"><label htmlFor="company-name">Nome della tua azienda/attività <span style={{color: 'red'}}>*</span></label><input id="company-name" type="text" name="companyName" onChange={handleInputChange} className="form-input" required /></div>
+        <div className="form-group"><label htmlFor="contact-email">Email di contatto <span style={{color: 'red'}}>*</span></label><input id="contact-email" type="email" name="contactEmail" onChange={handleInputChange} className="form-input" required /></div>
+        <div className="form-group"><label htmlFor="sector">In quale settore operi? <span style={{color: 'red'}}>*</span></label><select id="sector" name="sector" onChange={handleInputChange} className="form-input" required><option value="">Seleziona un settore...</option>{settori.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
         <hr style={{ margin: '2rem 0', borderColor: '#27272a' }} />
-        <div className="form-group"><label>Sito Web (Opzionale)</label><input type="url" name="website" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="website">Sito Web (Opzionale)</label><input id="website" type="url" name="website" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="facebook">Facebook (Opzionale)</label><input id="facebook" type="url" name="facebook" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="instagram">Instagram (Opzionale)</label><input id="instagram" type="url" name="instagram" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="twitter">Twitter / X (Opzionale)</label><input id="twitter" type="url" name="twitter" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="tiktok">TikTok (Opzionale)</label><input id="tiktok" type="url" name="tiktok" onChange={handleInputChange} className="form-input" /></div>
         <button type="submit" className="web3-button" disabled={isSending}>
-          {isSending ? 'Invio in corso...' : 'Invia Richiesta di Attivazione'}
+          {isSending ? 'Invio in corso...' : 'Invia Richiesta'}
         </button>
       </form>
     </div>
   );
 };
 
-
-// --- Componente: Dashboard per l'Utente Attivo (Completo) ---
+// === COMPONENTE 2: DASHBOARD PER L'UTENTE ATTIVO ===
+// Definizione completa del componente che mancava.
 const ActiveUserDashboard = () => {
-    // La logica per creare batch etc. andrebbe qui, per ora mostriamo solo un messaggio.
-  return (
-    <div className="card">
-      <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
-      <p>Benvenuto nella tua dashboard. Ora puoi iniziare a creare le tue filiere.</p>
-      {/* Qui potremmo aggiungere i pulsanti per inizializza, add step, etc. */}
-    </div>
-  );
+    return (
+        <div className="card">
+            <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
+            <p>Benvenuto nella tua dashboard. Ora puoi iniziare a creare le tue filiere.</p>
+            {/* Qui in futuro aggiungeremo il form per creare un batch */}
+        </div>
+    );
 };
 
-
-// --- Componente Principale della Pagina ---
-export default function AziendaPage() {
+// === COMPONENTE PRINCIPALE DELLA PAGINA ===
+export default function HomePage() {
   const address = useAddress();
-  const { contract } = useContract(contractAddress, abi); // Usiamo l'hook useContract con l'ABI
+  const { contract } = useContract(contractAddress);
 
-  // Usiamo useContractRead per leggere lo stato dell'utente
   const { data: contributorInfo, isLoading: isLoadingStatus } = useContractRead(
     contract,
     "getContributorInfo",
-    [address],
-    {
-        // Questo hook non parte se l'indirizzo non è ancora disponibile
-        enabled: !!address 
-    }
+    [address]
   );
 
   const isContributorActive = contributorInfo?.[2] === true;
-  const credits = contributorInfo?.[1]?.toString() || "N/A";
 
   const renderContent = () => {
-    if (!address) {
-      return <p style={{textAlign: 'center', marginTop: '4rem'}}>Connettiti per iniziare.</p>;
-    }
-    if (isLoadingStatus) {
-      return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica dello stato dell'account...</p>;
-    }
-    return isContributorActive ? <ActiveUserDashboard /> : <RegistrationForm />;
+    if (!address) { return <p style={{textAlign: 'center', marginTop: '4rem'}}>Connettiti per iniziare.</p>; }
+    if (isLoadingStatus) { return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica dello stato in corso...</p>; }
+    if (isContributorActive) { return <ActiveUserDashboard />; } 
+    else { return <RegistrationForm />; }
   };
 
   return (
@@ -126,17 +112,15 @@ export default function AziendaPage() {
         <div className="sidebar-header"><h1 className="sidebar-title">Easy Chain</h1></div>
         {address && (
           <div className="user-info">
-            <p><strong>Wallet Connesso:</strong></p><p style={{wordBreak: 'break-all'}}>{address}</p>
+            <p><strong>Wallet Connesso:</strong></p><p>{address}</p>
             <hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/>
-            <p><strong>Crediti Rimanenti:</strong></p><p>{isLoadingStatus ? "..." : credits}</p>
+            <p><strong>Crediti Rimanenti:</strong></p>
+            <p>{isLoadingStatus ? "..." : contributorInfo?.[1].toString() || "N/A"}</p>
           </div>
         )}
       </aside>
       <main className="main-content">
-        <header className="header">
-          {/* Pulsante di connessione standard della V4 */}
-          <ConnectWallet theme="dark"/>
-        </header>
+        <header className="header"><ConnectWallet theme="dark" btnTitle="Aziende: Accedi / Iscriviti" /></header>
         <h2 className="page-title">Portale Aziende</h2>
         {renderContent()}
       </main>
