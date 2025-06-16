@@ -1,7 +1,7 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE E COMPLETA CHE INCLUDE TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E RIPRISTINA TUTTE LE FUNZIONALITÀ
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, readContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
@@ -88,7 +88,7 @@ const ActiveUserDashboard = () => {
   const [activeBatchId, setActiveBatchId] = useState<bigint | null>(null);
 
   const handleTransactionSuccess = (receipt: any, type: 'init' | 'add' | 'close') => {
-    setModal(null); // Chiude la modale in ogni caso
+    setModal(null);
     if (type === 'init') {
       try {
         const events = parseEventLogs({ logs: receipt.logs, abi, eventName: "BatchInitialized" });
@@ -96,7 +96,6 @@ const ActiveUserDashboard = () => {
         setActiveBatchId(newBatchId);
         alert(`✅ Batch Inizializzato! Nuovo ID: ${newBatchId}`);
       } catch (e) {
-        console.error("Errore nel parsing dell'evento", e);
         alert("✅ Batch creato, ma non è stato possibile recuperare il nuovo ID.");
       }
     } else if (type === 'add') {
@@ -201,16 +200,25 @@ export default function AziendaPage() {
       }
 
       setIsLoading(true);
+      console.log("DEBUG: Controllo stato per l'account:", account.address);
       try {
+        // CORREZIONE CHIAVE: Usiamo la sintassi completa per la funzione
         const data = await readContract({
-          contract, abi,
-          method: `function getContributorInfo(address _contributorAddress) view returns (tuple(string name, uint256 credits, bool isActive))`,
+          contract,
+          abi,
+          method: "function getContributorInfo(address _contributorAddress) view returns (tuple(string name, uint256 credits, bool isActive))",
           params: [account.address]
         });
-        setIsActive(data[2]);
-        setCredits(data[1].toString());
+        
+        console.log("DEBUG: Dati ricevuti dal contratto:", data);
+
+        // Ora accediamo ai dati come proprietà di un oggetto
+        setIsActive(data.isActive);
+        setCredits(data.credits.toString());
+        console.log(`DEBUG: Stato impostato: isActive=${data.isActive}`);
+
       } catch (e) {
-        // Se la lettura fallisce (l'utente non è nel mapping), non è attivo.
+        console.error("DEBUG: Errore lettura contratto. L'utente probabilmente non è un contributor.", e);
         setIsActive(false);
         setCredits("N/A");
       } finally {
@@ -242,14 +250,10 @@ export default function AziendaPage() {
         <header className="header">
           <ConnectButton
             client={client}
-            wallets={[inAppWallet()]} // Forziamo solo il login social/email
+            wallets={[inAppWallet()]}
             accountAbstraction={{
               chain: polygon,
               sponsorGas: true,
-            }}
-            appMetadata={{
-              name: "Easy Chain",
-              url: "https://easychain.com",
             }}
           />
         </header>
