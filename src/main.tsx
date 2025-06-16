@@ -1,41 +1,23 @@
 // FILE: src/main.tsx
-// Configura l'app per usare SOLO i social login.
+// Configurazione per thirdweb V5 e il router di navigazione.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ThirdwebProvider } from "@thirdweb-dev/react";
+import { ThirdwebProvider } from "thirdweb/react";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App";
 import "./index.css";
 import "./App.css";
-
-// Importiamo SOLO il tipo di wallet che vogliamo supportare
-import { inAppWallet } from "@thirdweb-dev/react";
-
-// Importiamo i nostri componenti di pagina
-import HomePage from "./pages/HomePage";
-import AziendaPage from "./pages/AziendaPage";
-import AdminPage from "./pages/AdminPage";
 
 const container = document.getElementById("root");
 const root = createRoot(container!);
 
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <ThirdwebProvider
-        activeChain="polygon"
-        clientId="e40dfd747fabedf48c5837fb79caf2eb"
-        // Lista globale: solo social login abilitati per tutto il sito.
-        supportedWallets={[
-          inAppWallet(),
-        ]}
-      >
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/azienda" element={<AziendaPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-        </Routes>
-      </ThirdwebProvider>
-    </BrowserRouter>
+    <ThirdwebProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ThirdwebProvider>
   </React.StrictMode>
 );
