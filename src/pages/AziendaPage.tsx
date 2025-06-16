@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE E COMPLETA CHE USA LA LOGICA DI CONTROLLO CORRETTA
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
@@ -96,7 +96,6 @@ const ActiveUserDashboard = () => {
         setActiveBatchId(newBatchId);
         alert(`✅ Batch Inizializzato! Nuovo ID: ${newBatchId}`);
       } catch (e) {
-        console.error("Errore nel parsing dell'evento", e);
         alert("✅ Batch creato, ma non è stato possibile recuperare il nuovo ID.");
       }
     } else if (type === 'add') {
@@ -202,7 +201,7 @@ export default function AziendaPage() {
 
       setIsLoading(true);
       try {
-        // CORREZIONE DEFINITIVA: Ora usiamo la sintassi corretta per la chiamata
+        // CORREZIONE DEFINITIVA: Usiamo la sintassi semplice e robusta
         // e interpretiamo la risposta come un array.
         const data = await readContract({
           contract,
