@@ -1,112 +1,114 @@
-// FILE: src/pages/AziendaPage.tsx
-// Versione finale con login SOLO social, account abstraction, e sintassi V5 corretta.
-
-import React, { useState, useEffect, useCallback } from "react";
-import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
-import { createThirdwebClient, getContract, readContract, prepareContractCall } from "thirdweb";
+import { useState } from "react";
+import { ConnectButton } from "thirdweb/react";
+import {
+  createThirdwebClient,
+  getContract,
+  readContract,
+} from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { inAppWallet } from "thirdweb/wallets"; // Importazione corretta per V5
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 
-// Configurazione Client e Contratto
-const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
-const contract = getContract({ 
-  client, 
-  chain: polygon,
-  address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
+// La client ID è pubblica e sicura da esporre nel codice frontend
+const client = createThirdwebClient({
+  clientId: "c973587b1f63d047274355524317094d",
 });
 
-// --- Componente: Form di Registrazione (Completo) ---
-const RegistrationForm = () => {
-    const account = useActiveAccount();
-    const [formData, setFormData] = useState({ companyName: "", contactEmail: "", sector: "" });
-    const [isSending, setIsSending] = useState(false);
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formData.companyName || !formData.contactEmail || !formData.sector) { alert("Compila i campi obbligatori."); return; }
-        setIsSending(true);
-        try {
-            const response = await fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, walletAddress: account?.address }) });
-            if (response.ok) { alert('✅ Richiesta inviata!'); } else { throw new Error('Errore del server.'); }
-        } catch (error) { alert(`❌ Errore: ${(error as Error).message}`); } finally { setIsSending(false); }
-    };
-    const settori = ["Agricoltura", "Alimentare", "Moda", "Arredamento", "Altro"];
-    return (
-        <div className="card">
-            <h3>Benvenuto su Easy Chain!</h3>
-            <p>Per attivare il tuo account compila queste informazioni.</p>
-            <form onSubmit={handleSubmit}>
-                <div className="form-group"><label>Nome azienda <span style={{color: 'red'}}>*</span></label><input type="text" name="companyName" onChange={handleInputChange} className="form-input" required /></div>
-                <div className="form-group"><label>Email contatto <span style={{color: 'red'}}>*</span></label><input type="email" name="contactEmail" onChange={handleInputChange} className="form-input" required /></div>
-                <div className="form-group"><label>Settore <span style={{color: 'red'}}>*</span></label><select name="sector" onChange={handleInputChange} className="form-input" required><option value="">Seleziona...</option>{settori.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                <button type="submit" className="web3-button" disabled={isSending}>{isSending ? 'Invio...' : 'Invia Richiesta'}</button>
-            </form>
-        </div>
-    );
-};
+const contract = getContract({
+  client,
+  chain: polygon,
+  address: "0xb7294DA351829323315394212984187C51390494",
+  abi,
+});
 
-// --- Componente: Dashboard per Utente Attivo ---
-const ActiveUserDashboard = () => (
-    <div className="card">
-        <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
-        <p>Benvenuto! Crea un batch di prova. Il gas sarà sponsorizzato.</p>
-        <TransactionButton
-            transaction={() => prepareContractCall({
-                contract, abi, method: "initializeBatch",
-                params: ["Lotto Prova V5", "Creato con AA!", new Date().toLocaleDateString(), "Web App V5", "ipfs://..."]
-            })}
-            onTransactionConfirmed={() => alert("✅ Batch creato!")}
-            onError={(error) => alert(`❌ Errore: ${error.message}`)}
-            className="web3-button"
-        >
-            Crea Batch (Gasless)
-        </TransactionButton>
-    </div>
-);
+function AziendaPage() {
+  const [productId, setProductId] = useState("");
+  const [productHistory, setProductHistory] = useState<string[]>([]);
+  const [productName, setProductName] = useState("");
+  const [error, setError] = useState("");
 
-// --- Componente Principale della Pagina ---
-export default function AziendaPage() {
-  const account = useActiveAccount();
-  const [isActive, setIsActive] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const fetchProductHistory = async () => {
+    if (!productId) {
+      setError("Per favore, inserisci un ID prodotto.");
+      return;
+    }
+    try {
+      setError("");
+      setProductHistory([]);
+      setProductName("");
 
-  useEffect(() => {
-    const checkStatus = async () => {
-      if (account) {
-        setIsLoading(true);
-        try {
-          const data = await readContract({ contract, abi, method: "getContributorInfo", params: [account.address] });
-          setIsActive(data[2]);
-        } catch (e) { setIsActive(false); }
-        finally { setIsLoading(false); }
-      } else { setIsLoading(false); }
-    };
-    checkStatus();
-  }, [account]);
+      const data = await readContract({
+        contract,
+        method: "getProductHistory",
+        params: [BigInt(productId)],
+      });
 
-  const renderContent = () => {
-    if (!account) return <p style={{textAlign: 'center'}}>Connettiti per iniziare.</p>;
-    if (isLoading) return <p style={{textAlign: 'center'}}>Verifica stato...</p>;
-    return isActive ? <ActiveUserDashboard /> : <RegistrationForm />;
+      // Il nome è il primo elemento, la storia sono tutti gli altri
+      setProductName(data[0]);
+      setProductHistory(data.slice(1));
+
+      if (data.length <= 1) {
+        setError("Nessuna cronologia trovata per questo prodotto.");
+      }
+    } catch (err) {
+      console.error("Errore nel recuperare la cronologia:", err);
+      setError("Prodotto non trovato o errore di rete.");
+    }
   };
 
   return (
-    <div className="app-container">
-      <aside className="sidebar"><h1 className="sidebar-title">Easy Chain</h1>{account && <div className="user-info"><p><strong>Wallet:</strong></p><p>{account.address}</p></div>}</aside>
-      <main className="main-content">
-        <header className="header">
-          <ConnectButton
-            client={client}
-            wallets={[inAppWallet()]} // <-- Mostra SOLO i login social/email
-            accountAbstraction={{ chain: polygon, sponsorGas: true }}
-            appMetadata={{ name: "Easy Chain", url: "https://easychain.com" }}
-          />
-        </header>
-        <h2 className="page-title">Portale Aziende</h2>
-        {renderContent()}
-      </main>
+    <div className="container">
+      <div className="header">
+        <h1>Tracciabilità Prodotto</h1>
+        <p>Controlla la cronologia di un prodotto per verificarne la filiera.</p>
+        <ConnectButton client={client} chain={polygon} />
+      </div>
+
+      <div className="card">
+        <h2>Cerca Prodotto per ID</h2>
+        <input
+          type="number"
+          placeholder="ID del Prodotto"
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+          className="input-field"
+        />
+        <button
+          onClick={fetchProductHistory}
+          className="button"
+          style={{ backgroundColor: "#007bff" }}
+        >
+          Cerca Cronologia
+        </button>
+      </div>
+
+      {error && <p className="error-message">{error}</p>}
+
+      {productName && (
+        <div className="card result-card">
+          <h2>
+            Risultati per: <strong>{productName}</strong> (ID: {productId})
+          </h2>
+          {productHistory.length > 0 ? (
+            <ul className="history-list">
+              {productHistory.map((state, index) => (
+                <li key={index} className="history-item">
+                  <span className="step-number">{index + 1}</span>
+                  <span className="step-state">{state}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>Questo prodotto è stato registrato ma non ha ancora aggiornamenti di stato.</p>
+          )}
+        </div>
+      )}
+
+      <footer className="footer">
+        <p>&copy; 2024 PoliSupplyChain. Realizzato da HASC.</p>
+      </footer>
     </div>
   );
 }
+
+export default AziendaPage;
