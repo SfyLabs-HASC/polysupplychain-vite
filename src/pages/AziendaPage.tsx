@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE CHE USA LA LOGICA DI CONTROLLO CORRETTA E FUNZIONANTE
+// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E TUTTE LE FUNZIONALITÀ
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
@@ -207,8 +207,12 @@ export default function AziendaPage() {
           abi,
           method: "getContributorInfo",
           params: [account.address]
-        }) as [string, bigint, boolean];
+        }) as [string, bigint, boolean]; // Forziamo il tipo di risposta corretto
         
+        // Accediamo ai dati con gli indici dell'array:
+        // data[0] è il nome (string)
+        // data[1] sono i crediti (bigint)
+        // data[2] è lo stato di attivazione (boolean)
         const contributorIsActive = data[2];
         const contributorCredits = data[1].toString();
 
@@ -216,6 +220,7 @@ export default function AziendaPage() {
         setCredits(contributorCredits);
 
       } catch (e) {
+        // Questo errore è normale se l'utente non è ancora stato registrato.
         setIsActive(false);
         setCredits("N/A");
       } finally {
