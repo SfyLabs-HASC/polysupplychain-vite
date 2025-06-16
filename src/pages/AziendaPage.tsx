@@ -1,10 +1,11 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE CHE RIPRISTINA TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE E COMPLETA CHE INCLUDE TUTTE LE FUNZIONALITÀ
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, readContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
+import { inAppWallet } from "thirdweb/wallets";
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 
@@ -111,7 +112,7 @@ const ActiveUserDashboard = () => {
       <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
       <p>Benvenuto nella tua dashboard. Le seguenti azioni sono sponsorizzate (gasless).</p>
       
-      {activeBatchId && <p>Stai lavorando sul Batch ID: <strong>{activeBatchId.toString()}</strong></p>}
+      {activeBatchId && <div style={{background: '#27272a', padding: '1rem', borderRadius: '8px', margin: '1rem 0'}}><p style={{margin:0}}>Stai lavorando sul Batch ID: <strong>{activeBatchId.toString()}</strong></p></div>}
 
       <div className="modal-actions">
         <button className="web3-button" onClick={() => setModal('init')}>1. Inizializza Batch</button>
@@ -125,10 +126,11 @@ const ActiveUserDashboard = () => {
           <TransactionButton
             transaction={() => prepareContractCall({
               contract, abi, method: "initializeBatch",
-              params: [ "Lotto Prova Gasless", "Descrizione di prova", new Date().toLocaleDateString(), "Web App", "ipfs://Qm..."]
+              params: [ "Lotto Prova Gasless", "Descrizione di prova", new Date().toLocaleDateString(), "Web App", "ipfs://..."]
             })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'init')}
             onError={(error) => alert(`❌ Errore: ${error.message}`)}
+            className="web3-button"
           >
             Conferma Inizializzazione
           </TransactionButton>
@@ -144,6 +146,7 @@ const ActiveUserDashboard = () => {
             })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'add')}
             onError={(error) => alert(`❌ Errore: ${error.message}`)}
+            className="web3-button"
           >
             Conferma Aggiunta Step
           </TransactionButton>
@@ -156,7 +159,7 @@ const ActiveUserDashboard = () => {
             transaction={() => prepareContractCall({ contract, abi, method: "closeBatch", params: [activeBatchId] })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'close')}
             onError={(error) => alert(`❌ Errore: ${error.message}`)}
-            style={{backgroundColor: '#ef4444'}}
+            className="web3-button" style={{backgroundColor: '#ef4444'}}
           >
             Conferma Chiusura
           </TransactionButton>
@@ -193,11 +196,7 @@ export default function AziendaPage() {
       if (!account) { setIsLoading(false); setIsActive(false); return; }
       setIsLoading(true);
       try {
-        const data = await readContract({
-          contract, abi,
-          method: `function getContributorInfo(address) returns (tuple(string name, uint256 credits, bool isActive))`,
-          params: [account.address]
-        });
+        const data = await readContract({ contract, abi, method: `function getContributorInfo(address) returns (tuple(string name, uint256 credits, bool isActive))`, params: [account.address] });
         setIsActive(data[2]);
         setCredits(data[1].toString());
       } catch (e) {
@@ -210,7 +209,7 @@ export default function AziendaPage() {
 
   const renderContent = () => {
     if (!account) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Connettiti per iniziare.</p>;
-    if (isLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato...</p>;
+    if (isLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica dello stato dell'account...</p>;
     return isActive ? <ActiveUserDashboard /> : <RegistrationForm />;
   };
 
@@ -230,9 +229,15 @@ export default function AziendaPage() {
         <header className="header">
           <ConnectButton
             client={client}
+            // Personalizziamo il login per le aziende
+            wallets={[inAppWallet({ auth: { options: ["email", "google", "apple", "facebook"] } })]}
             accountAbstraction={{
               chain: polygon,
               sponsorGas: true,
+            }}
+            appMetadata={{
+              name: "Easy Chain",
+              url: "https://easychain.com",
             }}
           />
         </header>
