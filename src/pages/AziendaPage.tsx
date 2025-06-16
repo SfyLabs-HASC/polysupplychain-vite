@@ -1,7 +1,7 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E RIPRISTINA TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E TUTTE LE FUNZIONALITÀ
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, readContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
@@ -96,6 +96,7 @@ const ActiveUserDashboard = () => {
         setActiveBatchId(newBatchId);
         alert(`✅ Batch Inizializzato! Nuovo ID: ${newBatchId}`);
       } catch (e) {
+        console.error("Errore nel parsing dell'evento", e);
         alert("✅ Batch creato, ma non è stato possibile recuperare il nuovo ID.");
       }
     } else if (type === 'add') {
@@ -202,20 +203,21 @@ export default function AziendaPage() {
       setIsLoading(true);
       console.log("DEBUG: Controllo stato per l'account:", account.address);
       try {
-        // CORREZIONE CHIAVE: Usiamo la sintassi completa per la funzione
+        // CORREZIONE CHIAVE: Usiamo solo il nome della funzione. L'SDK userà l'ABI
+        // che gli forniamo per capire la firma completa e i tipi di ritorno.
         const data = await readContract({
           contract,
           abi,
-          method: "function getContributorInfo(address _contributorAddress) view returns (tuple(string name, uint256 credits, bool isActive))",
+          method: "getContributorInfo",
           params: [account.address]
         });
         
         console.log("DEBUG: Dati ricevuti dal contratto:", data);
 
-        // Ora accediamo ai dati come proprietà di un oggetto
-        setIsActive(data.isActive);
-        setCredits(data.credits.toString());
-        console.log(`DEBUG: Stato impostato: isActive=${data.isActive}`);
+        // Ora accediamo ai dati usando gli indici dell'array restituito
+        setIsActive(data[2]);
+        setCredits(data[1].toString());
+        console.log(`DEBUG: Stato impostato: isActive=${data[2]}`);
 
       } catch (e) {
         console.error("DEBUG: Errore lettura contratto. L'utente probabilmente non è un contributor.", e);
