@@ -193,20 +193,29 @@ export default function AziendaPage() {
 
   useEffect(() => {
     const checkStatus = async () => {
-      if (!account) { setIsLoading(false); setIsActive(false); return; }
+      if (!account) {
+        setIsLoading(false);
+        setIsActive(false);
+        setCredits("N/A");
+        return;
+      }
+
       setIsLoading(true);
       try {
         const data = await readContract({
           contract, abi,
-          method: `function getContributorInfo(address) returns (tuple(string name, uint256 credits, bool isActive))`,
+          method: `function getContributorInfo(address _contributorAddress) view returns (tuple(string name, uint256 credits, bool isActive))`,
           params: [account.address]
         });
         setIsActive(data[2]);
         setCredits(data[1].toString());
       } catch (e) {
+        // Se la lettura fallisce (l'utente non è nel mapping), non è attivo.
         setIsActive(false);
         setCredits("N/A");
-      } finally { setIsLoading(false); }
+      } finally {
+        setIsLoading(false);
+      }
     };
     checkStatus();
   }, [account]);
