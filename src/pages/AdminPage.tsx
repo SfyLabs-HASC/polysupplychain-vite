@@ -1,5 +1,5 @@
 // FILE: src/pages/AdminPage.tsx
-// QUESTA È LA VERSIONE FINALE E COMPLETA CON TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE E COMPLETA CHE INCLUDE TUTTE LE FUNZIONALITÀ
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
@@ -32,6 +32,7 @@ const contract = getContract({
 const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, onClose: () => void, onUpdate: () => void }) => {
   const [credits, setCredits] = useState(company.credits || 50);
 
+  // Funzione generica per aggiornare il nostro DB dopo un'azione on-chain
   const updateOffChainStatus = async (action: string) => {
     try {
       await fetch('/api/activate-company', {
@@ -74,9 +75,13 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
           <div className="modal-actions">
             {company.status === 'pending' && (
               <TransactionButton
-                transaction={() => prepareContractCall({ contract, abi, method: "function addContributor(address, string)", params: [company.walletAddress, company.companyName] })}
-                onTransactionConfirmed={() => { alert("Azienda attivata on-chain!"); updateOffChainStatus('activate'); onClose(); }}
-                onError={(error) => alert(`Errore: ${error.message}`)}
+                transaction={() => prepareContractCall({ contract, abi, method: "addContributor", params: [company.walletAddress, company.companyName] })}
+                onTransactionConfirmed={() => {
+                  alert("Azienda attivata on-chain!");
+                  updateOffChainStatus('activate');
+                  onClose();
+                }}
+                onError={(error) => alert(`Errore attivazione: ${error.message}`)}
                 className="web3-button"
               >
                 ✅ Attiva Contributor
@@ -84,9 +89,9 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
             )}
             {company.status === 'active' && (
               <TransactionButton
-                transaction={() => prepareContractCall({ contract, abi, method: "function deactivateContributor(address)", params: [company.walletAddress] })}
+                transaction={() => prepareContractCall({ contract, abi, method: "deactivateContributor", params: [company.walletAddress] })}
                 onTransactionConfirmed={() => { alert("Azienda disattivata on-chain!"); updateOffChainStatus('deactivate'); }}
-                onError={(error) => alert(`Errore: ${error.message}`)}
+                onError={(error) => alert(`Errore disattivazione: ${error.message}`)}
                 className="web3-button" style={{backgroundColor: '#f59e0b'}}
               >
                 ❌ Disattiva Contributor
@@ -94,9 +99,9 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
             )}
             {company.status === 'deactivated' && (
               <TransactionButton
-                transaction={() => prepareContractCall({ contract, abi, method: "function addContributor(address, string)", params: [company.walletAddress, company.companyName] })}
+                transaction={() => prepareContractCall({ contract, abi, method: "addContributor", params: [company.walletAddress, company.companyName] })}
                 onTransactionConfirmed={() => { alert("Azienda riattivata on-chain!"); updateOffChainStatus('reactivate'); }}
-                onError={(error) => alert(`Errore: ${error.message}`)}
+                onError={(error) => alert(`Errore riattivazione: ${error.message}`)}
                 className="web3-button"
               >
                 ✅ Riattiva Contributor
@@ -110,9 +115,9 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
           <label>Imposta Crediti</label>
           <input type="number" value={credits} onChange={(e) => setCredits(Number(e.target.value))} className="form-input" />
           <TransactionButton
-            transaction={() => prepareContractCall({ contract, abi, method: "function setContributorCredits(address, uint256)", params: [company.walletAddress, BigInt(credits)] })}
+            transaction={() => prepareContractCall({ contract, abi, method: "setContributorCredits", params: [company.walletAddress, BigInt(credits)] })}
             onTransactionConfirmed={() => { alert("Crediti impostati on-chain!"); updateOffChainStatus('setCredits'); }}
-            onError={(error) => alert(`Errore: ${error.message}`)}
+            onError={(error) => alert(`Errore crediti: ${error.message}`)}
             className="web3-button" style={{marginTop: '0.5rem', width: '100%'}}
             disabled={company.status === 'pending'}>
             Aggiorna Crediti
@@ -123,7 +128,7 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
         {(company.status === 'pending' || company.status === 'deactivated') && (
           <div style={{marginTop: '1.5rem', borderTop: '1px solid #27272a', paddingTop: '1.5rem'}}>
               <button onClick={handleDelete} className="web3-button" style={{backgroundColor: '#ef4444', width: '100%'}}>
-                  Elimina da Lista
+                  Elimina Definitivamente
               </button>
           </div>
         )}
@@ -209,11 +214,11 @@ const AdminContent = () => {
           if (account) {
             setIsLoading(true);
             try {
-              const [superOwner, owner] = await Promise.all([
+              const [superOwnerResult, ownerResult] = await Promise.all([
                 readContract({ contract, abi, method: "function superOwner() view returns (address)" }),
                 readContract({ contract, abi, method: "function owner() view returns (address)" })
               ]);
-              const isAdmin = account.address.toLowerCase() === superOwner.toLowerCase() || (owner && account.address.toLowerCase() === owner.toLowerCase());
+              const isAdmin = account.address.toLowerCase() === superOwnerResult.toLowerCase() || (ownerResult && account.address.toLowerCase() === ownerResult.toLowerCase());
               setIsAllowed(isAdmin);
             } catch (e) { setIsAllowed(false); }
             finally { setIsLoading(false); }
@@ -225,21 +230,13 @@ const AdminContent = () => {
         checkPermissions();
     }, [account]);
 
-    if (isLoading) {
-        return <p style={{textAlign: 'center', marginTop: '2rem'}}>Verifica permessi in corso...</p>;
-    }
-  
-    if (isAllowed) {
-        return <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div>;
-    }
-  
-    return <h2 style={{ color: '#ef4444', fontSize: '2rem', marginTop: '4rem' }}>❌ ACCESSO NEGATO</h2>;
+    if (!account) { return <p style={{textAlign: 'center', marginTop: '2rem'}}>Connetti il tuo wallet da amministratore per accedere.</p>; }
+    if (isLoading) { return <p style={{textAlign: 'center', marginTop: '2rem'}}>Verifica permessi in corso...</p>; }
+    return isAllowed ? <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div> : <h2 style={{ color: '#ef4444', fontSize: '2rem', marginTop: '4rem' }}>❌ ACCESSO NEGATO</h2>;
 };
 
 
 export default function AdminPage() {
-  const account = useActiveAccount();
-  
   return (
     <div className="app-container">
       <main className="main-content" style={{width: '100%'}}>
@@ -248,11 +245,10 @@ export default function AdminPage() {
           <ConnectButton
             client={client}
             chain={polygon}
-            // Personalizziamo il login per l'admin
             wallets={[metamaskWallet(), coinbaseWallet(), walletConnect()]}
           />
         </header>
-        {account ? <AdminContent /> : <p>Connetti il tuo wallet da amministratore per accedere.</p>}
+        <AdminContent />
       </main>
     </div>
   );
