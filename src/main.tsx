@@ -1,5 +1,5 @@
 // FILE: src/main.tsx
-// Configurazione per thirdweb V5 e il router di navigazione.
+// Configurazione finale e corretta per thirdweb V5 e il router.
 
 import React from "react";
 import { createRoot } from "react-dom/client";
