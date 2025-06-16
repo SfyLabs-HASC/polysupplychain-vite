@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE E COMPLETA CHE CORREGGE LA LOGICA DI CONTROLLO
+// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E TUTTE LE FUNZIONALITÀ
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
@@ -201,27 +201,28 @@ export default function AziendaPage() {
       }
 
       setIsLoading(true);
+      console.log("DEBUG: Controllo stato per l'account:", account.address);
       try {
-        // CORREZIONE CHIAVE: Usiamo la sintassi corretta per la firma della funzione.
-        // L'SDK V5 è molto preciso sulla sintassi.
+        // CORREZIONE CHIAVE: La risposta è un oggetto con le proprietà nominate nell'ABI.
         const data = await readContract({
           contract,
           abi,
-          method: "getContributorInfo", // Usiamo solo il nome, l'ABI farà il resto
+          method: "getContributorInfo",
           params: [account.address]
         });
         
-        // CORREZIONE CHIAVE: la risposta è un array, non un oggetto.
-        // Accediamo ai dati con gli indici: [0] = nome, [1] = crediti, [2] = isActive
-        const contributorIsActive = data[2];
-        const contributorCredits = data[1].toString();
+        console.log("DEBUG: Dati ricevuti dal contratto:", data);
+
+        // Accediamo ai dati usando le proprietà, non gli indici.
+        const contributorIsActive = data.isActive;
+        const contributorCredits = data.credits.toString();
 
         setIsActive(contributorIsActive);
         setCredits(contributorCredits);
+        console.log(`DEBUG: Stato impostato: isActive=${contributorIsActive}`);
 
       } catch (e) {
-        // Questo errore è normale se l'utente non è ancora stato registrato.
-        console.log("Utente non trovato nel contratto, non è ancora un contributor.");
+        console.error("DEBUG: Errore lettura contratto. L'utente probabilmente non è un contributor.", e);
         setIsActive(false);
         setCredits("N/A");
       } finally {
