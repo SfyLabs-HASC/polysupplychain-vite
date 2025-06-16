@@ -1,5 +1,5 @@
 // FILE: src/abi/contractABI.ts
-// Esportiamo l'ABI come una costante per un'importazione sicura.
+// Esportiamo l'ABI come una costante per un'importazione sicura e corretta.
 
 export const supplyChainABI = [
     { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
