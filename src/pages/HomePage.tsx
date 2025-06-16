@@ -1,71 +1,30 @@
-import { ConnectButton } from "thirdweb/react";
-import { createThirdwebClient } from "thirdweb";
-import { polygon } from "thirdweb/chains";
-import "../App.css";
+// FILE: src/pages/HomePage.tsx
+// Pagina di benvenuto statica con i link alle altre sezioni.
 
-// La client ID è pubblica e sicura da esporre nel codice frontend
-const client = createThirdwebClient({
-  clientId: "c973587b1f63d047274355524317094d",
-});
+import { Link } from "react-router-dom";
+import "../App.css"; // Assicurati di avere questo file con gli stili
 
-function HomePage() {
+export default function HomePage() {
   return (
-    <div className="container">
-      <div className="header">
-        <h1>Benvenuto nella PoliSupplyChain</h1>
-        <p>
-          Questa DApp permette di tracciare la filiera di un prodotto.
-          <br />
-          Connettiti con il tuo wallet per iniziare.
+    <div className="app-container">
+      <main className="main-content" style={{ textAlign: 'center', margin: 'auto', padding: '2rem' }}>
+        <h1 className="page-title" style={{ fontSize: '3rem' }}>
+          Benvenuto su Easy Chain
+        </h1>
+        <p style={{ fontSize: '1.2rem', color: '#a0a0a0', maxWidth: '600px', margin: '1rem auto' }}>
+          La soluzione semplice e sicura per certificare la tua filiera produttiva su blockchain.
         </p>
-      </div>
-
-      <div className="connect-button-container">
-        {/*
-          Il ConnectButton è stato semplificato.
-          Eredita automaticamente i wallet dal ThirdwebProvider.
-          Abbiamo rimosso la prop 'wallets' e l'import corrispondente.
-        */}
-        <ConnectButton
-          client={client}
-          chain={polygon}
-          connectButton={{
-            label: "Connetti il Wallet",
-            style: {
-              backgroundColor: "#007bff",
-              color: "white",
-              border: "none",
-              padding: "15px 30px",
-              borderRadius: "10px",
-              cursor: "pointer",
-              fontSize: "18px",
-              fontWeight: "bold",
-            },
-          }}
-          connectModal={{
-            size: "compact",
-            title: "Scegli un Wallet",
-            titleIcon: "",
-            showThirdwebBranding: false,
-          }}
-        />
-      </div>
-
-      <div className="info-box">
-        <p>
-          Sei un <strong>Produttore</strong>? Vai alla sezione Admin per
-          registrare nuovi prodotti e aggiornare la loro filiera.
-          <br />
-          Sei un <strong>Cliente</strong>? Vai alla sezione User per
-          verificare l'autenticità di un prodotto tramite il suo ID.
-        </p>
-      </div>
-
-      <footer className="footer">
-        <p>&copy; 2024 PoliSupplyChain. Realizzato da HASC.</p>
-      </footer>
+        <div style={{ marginTop: '3rem' }}>
+          <Link to="/azienda" style={{ textDecoration: 'none' }}>
+            <button className="web3-button">ISCRIVITI / ACCEDI</button>
+          </Link>
+        </div>
+        <div style={{ marginTop: '1rem' }}>
+          <Link to="/admin" style={{color: '#a0a0a0', fontSize: '0.9rem'}}>
+            Accesso Amministratore
+          </Link>
+        </div>
+      </main>
     </div>
   );
 }
-
-export default HomePage;

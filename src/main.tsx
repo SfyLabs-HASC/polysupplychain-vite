@@ -1,25 +1,23 @@
+// FILE: src/main.tsx
+// Configurazione finale e corretta per thirdweb V5 e il router.
+
 import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter as Router } from "react-router-dom";
+import { createRoot } from "react-dom/client";
 import { ThirdwebProvider } from "thirdweb/react";
-import { metamaskWallet, coinbaseWallet, walletConnect } from "thirdweb/wallets";
-
-import App from "./App.tsx";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App";
 import "./index.css";
+import "./App.css";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+const container = document.getElementById("root");
+const root = createRoot(container!);
+
+root.render(
   <React.StrictMode>
-    {/*
-      Il ThirdwebProvider ora contiene la configurazione dei wallet.
-      Nota che i wallet vengono invocati come funzioni: metamaskWallet().
-      Questa configurazione sarà ereditata da tutti i componenti ConnectButton nell'app.
-    */}
-    <ThirdwebProvider
-      supportedWallets={[metamaskWallet(), coinbaseWallet(), walletConnect()]}
-    >
-      <Router>
+    <ThirdwebProvider>
+      <BrowserRouter>
         <App />
-      </Router>
+      </BrowserRouter>
     </ThirdwebProvider>
   </React.StrictMode>
 );
