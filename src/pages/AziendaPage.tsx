@@ -201,26 +201,22 @@ export default function AziendaPage() {
       }
 
       setIsLoading(true);
-      console.log("DEBUG: Controllo stato per l'account:", account.address);
       try {
-        // CORREZIONE CHIAVE: Usiamo solo il nome della funzione. L'SDK userà l'ABI
-        // che gli forniamo per capire la firma completa e i tipi di ritorno.
+        // CORREZIONE CHIAVE: Usiamo la sintassi completa e corretta per la firma della funzione.
         const data = await readContract({
           contract,
           abi,
-          method: "getContributorInfo",
+          method: "function getContributorInfo(address _contributorAddress) view returns (tuple(string name, uint256 credits, bool isActive))",
           params: [account.address]
         });
         
-        console.log("DEBUG: Dati ricevuti dal contratto:", data);
-
-        // Ora accediamo ai dati usando gli indici dell'array restituito
-        setIsActive(data[2]);
-        setCredits(data[1].toString());
-        console.log(`DEBUG: Stato impostato: isActive=${data[2]}`);
+        // Ora accediamo ai dati come proprietà di un oggetto, non più con gli indici
+        setIsActive(data.isActive);
+        setCredits(data.credits.toString());
 
       } catch (e) {
-        console.error("DEBUG: Errore lettura contratto. L'utente probabilmente non è un contributor.", e);
+        // Questo errore è normale se l'utente non è ancora stato registrato.
+        console.log("Utente non trovato nel contratto, non è ancora un contributor.");
         setIsActive(false);
         setCredits("N/A");
       } finally {
