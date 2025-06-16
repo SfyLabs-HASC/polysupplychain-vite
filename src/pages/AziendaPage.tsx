@@ -1,7 +1,7 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE E COMPLETA CHE INCLUDE TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE CHE RIPRISTINA TUTTE LE FUNZIONALITÀ
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, readContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
@@ -95,6 +95,7 @@ const ActiveUserDashboard = () => {
         setActiveBatchId(newBatchId);
         alert(`✅ Batch Inizializzato! Nuovo ID: ${newBatchId}`);
       } catch (e) {
+        console.error("Errore nel parsing dell'evento", e);
         alert("✅ Batch creato, ma non è stato possibile recuperare il nuovo ID.");
       }
     } else if (type === 'add') {
@@ -118,13 +119,13 @@ const ActiveUserDashboard = () => {
         <button className="web3-button" onClick={() => setModal('close')} disabled={!activeBatchId} style={{backgroundColor: '#ef4444'}}>3. Chiudi Batch</button>
       </div>
 
-      {modal === 'init' && (
+      {modal === 'init' && 
         <FormModal title="Inizializza Nuovo Batch" onClose={() => setModal(null)}>
           <p>Stai per creare un nuovo batch. I dati sono pre-compilati per questo test.</p>
           <TransactionButton
             transaction={() => prepareContractCall({
               contract, abi, method: "initializeBatch",
-              params: [ "Lotto Prova Gasless", "Descrizione di prova", new Date().toLocaleDateString(), "Web App", "ipfs://..."]
+              params: [ "Lotto Prova Gasless", "Descrizione di prova", new Date().toLocaleDateString(), "Web App", "ipfs://Qm..."]
             })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'init')}
             onError={(error) => alert(`❌ Errore: ${error.message}`)}
@@ -132,8 +133,8 @@ const ActiveUserDashboard = () => {
             Conferma Inizializzazione
           </TransactionButton>
         </FormModal>
-      )}
-      {modal === 'add' && activeBatchId && (
+      }
+      {modal === 'add' && activeBatchId &&
         <FormModal title={`Aggiungi Step al Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
            <p>Stai per aggiungere uno step al batch corrente.</p>
            <TransactionButton
@@ -147,8 +148,8 @@ const ActiveUserDashboard = () => {
             Conferma Aggiunta Step
           </TransactionButton>
         </FormModal>
-      )}
-      {modal === 'close' && activeBatchId && (
+      }
+      {modal === 'close' && activeBatchId &&
         <FormModal title={`Chiudi Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
            <p>Sei sicuro di voler chiudere questo batch? L'azione è irreversibile e consumerà 1 credito.</p>
            <TransactionButton
@@ -160,7 +161,7 @@ const ActiveUserDashboard = () => {
             Conferma Chiusura
           </TransactionButton>
         </FormModal>
-      )}
+      }
     </div>
   );
 };
@@ -192,7 +193,11 @@ export default function AziendaPage() {
       if (!account) { setIsLoading(false); setIsActive(false); return; }
       setIsLoading(true);
       try {
-        const data = await readContract({ contract, abi, method: `function getContributorInfo(address) returns (tuple(string name, uint256 credits, bool isActive))`, params: [account.address] });
+        const data = await readContract({
+          contract, abi,
+          method: `function getContributorInfo(address) returns (tuple(string name, uint256 credits, bool isActive))`,
+          params: [account.address]
+        });
         setIsActive(data[2]);
         setCredits(data[1].toString());
       } catch (e) {
@@ -213,11 +218,23 @@ export default function AziendaPage() {
     <div className="app-container">
       <aside className="sidebar">
         <div className="sidebar-header"><h1 className="sidebar-title">Easy Chain</h1></div>
-        {account && (<div className="user-info"><p><strong>Wallet Connesso:</strong></p><p style={{wordBreak: 'break-all'}}>{account.address}</p><hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/><p><strong>Crediti:</strong></p><p>{isLoading ? "..." : credits}</p></div>)}
+        {account && (
+          <div className="user-info">
+            <p><strong>Wallet Connesso:</strong></p><p style={{wordBreak: 'break-all'}}>{account.address}</p>
+            <hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/>
+            <p><strong>Crediti Rimanenti:</strong></p><p>{isLoading ? "..." : credits}</p>
+          </div>
+        )}
       </aside>
       <main className="main-content">
         <header className="header">
-          <ConnectButton client={client} accountAbstraction={{ chain: polygon, sponsorGas: true }}/>
+          <ConnectButton
+            client={client}
+            accountAbstraction={{
+              chain: polygon,
+              sponsorGas: true,
+            }}
+          />
         </header>
         <h2 className="page-title">Portale Aziende</h2>
         {renderContent()}

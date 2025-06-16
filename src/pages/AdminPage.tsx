@@ -1,5 +1,5 @@
 // FILE: src/pages/AdminPage.tsx
-// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO ACCESSI
+// QUESTA È LA VERSIONE FINALE CHE IMPLEMENTA CORRETTAMENTE LE AZIONI ON-CHAIN
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
@@ -8,7 +8,7 @@ import { polygon } from "thirdweb/chains";
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 
-// Definizione del tipo per un'azienda
+// Definizione del tipo per un'azienda per una migliore gestione
 type Company = {
   id: string;
   companyName: string;
@@ -16,7 +16,6 @@ type Company = {
   status: 'active' | 'pending' | 'deactivated';
   credits?: number;
   contactEmail?: string;
-  relayerWalletAddress?: string;
 };
 
 // Configurazione del Client e del Contratto
@@ -27,10 +26,11 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-// --- Componente Modale per la Modifica (Completo e Corretto) ---
+// --- Componente Modale per la Modifica (Logica On-Chain Reale) ---
 const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, onClose: () => void, onUpdate: () => void }) => {
   const [credits, setCredits] = useState(company.credits || 50);
 
+  // Funzione generica per aggiornare il nostro DB dopo un'azione on-chain
   const updateOffChainStatus = async (action: string) => {
     try {
       await fetch('/api/activate-company', {
@@ -38,12 +38,28 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, walletAddress: company.walletAddress, credits: parseInt(String(credits)), companyName: company.companyName }),
       });
-      onUpdate();
+      onUpdate(); // Ricarica la lista per mostrare i cambiamenti
     } catch (error) {
       alert(`Errore nell'aggiornare il database: ${(error as Error).message}`);
     }
   };
-  
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Sei sicuro di voler eliminare definitivamente ${company.companyName}?`)) return;
+    try {
+      await fetch('/api/delete-company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: company.walletAddress, status: company.status }),
+      });
+      alert("Azienda eliminata dalla lista.");
+      onUpdate();
+      onClose();
+    } catch (error) {
+       alert(`Errore: ${(error as Error).message}`);
+    }
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
@@ -51,18 +67,21 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
         <p><strong>Wallet:</strong> {company.walletAddress}</p>
         <hr style={{margin: '1.5rem 0', borderColor: '#27272a'}}/>
 
+        {/* 1. SEZIONE AZIONI STATO (con TransactionButton reali) */}
         <div className="form-group">
           <label>Azioni Stato Contributor</label>
           <div className="modal-actions">
             {company.status === 'pending' && (
               <TransactionButton
-                transaction={() => prepareContractCall({ contract, abi, method: "addContributor", params: [company.walletAddress, company.companyName] })}
+                transaction={() => prepareContractCall({ 
+                  contract, abi, method: "addContributor", params: [company.walletAddress, company.companyName] 
+                })}
                 onTransactionConfirmed={() => {
-                  alert("Azienda attivata on-chain! Ora imposta i crediti.");
+                  alert("Azienda registrata on-chain! Ora imposta i crediti.");
                   updateOffChainStatus('activate');
-                  onClose();
+                  // Non chiudiamo la modale, così l'admin può impostare i crediti subito
                 }}
-                onError={(error) => alert(`Errore: ${error.message}`)}
+                onError={(error) => alert(`Errore attivazione: ${error.message}`)}
                 className="web3-button"
               >
                 ✅ Attiva Contributor
@@ -72,7 +91,7 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
               <TransactionButton
                 transaction={() => prepareContractCall({ contract, abi, method: "deactivateContributor", params: [company.walletAddress] })}
                 onTransactionConfirmed={() => { alert("Azienda disattivata on-chain!"); updateOffChainStatus('deactivate'); }}
-                onError={(error) => alert(`Errore: ${error.message}`)}
+                onError={(error) => alert(`Errore disattivazione: ${error.message}`)}
                 className="web3-button" style={{backgroundColor: '#f59e0b'}}
               >
                 ❌ Disattiva Contributor
@@ -82,7 +101,7 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
               <TransactionButton
                 transaction={() => prepareContractCall({ contract, abi, method: "addContributor", params: [company.walletAddress, company.companyName] })}
                 onTransactionConfirmed={() => { alert("Azienda riattivata on-chain!"); updateOffChainStatus('reactivate'); }}
-                onError={(error) => alert(`Errore: ${error.message}`)}
+                onError={(error) => alert(`Errore riattivazione: ${error.message}`)}
                 className="web3-button"
               >
                 ✅ Riattiva Contributor
@@ -91,18 +110,30 @@ const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, on
           </div>
         </div>
 
+        {/* 2. SEZIONE GESTIONE CREDITI (con TransactionButton reale) */}
         <div className="form-group" style={{marginTop: '1.5rem'}}>
-          <label>Imposta Crediti</label>
+          <label>Imposta o Aggiungi Crediti</label>
           <input type="number" value={credits} onChange={(e) => setCredits(Number(e.target.value))} className="form-input" />
           <TransactionButton
-            transaction={() => prepareContractCall({ contract, abi, method: "setContributorCredits", params: [company.walletAddress, BigInt(credits)] })}
+            transaction={() => prepareContractCall({
+              contract, abi, method: "setContributorCredits", params: [company.walletAddress, BigInt(credits)]
+            })}
             onTransactionConfirmed={() => { alert("Crediti impostati on-chain!"); updateOffChainStatus('setCredits'); }}
-            onError={(error) => alert(`Errore: ${error.message}`)}
+            onError={(error) => alert(`Errore crediti: ${error.message}`)}
             className="web3-button" style={{marginTop: '0.5rem', width: '100%'}}
             disabled={company.status === 'pending'}>
             Aggiorna Crediti
           </TransactionButton>
         </div>
+
+        {/* 3. SEZIONE ELIMINAZIONE (azione off-chain) */}
+        {(company.status === 'pending' || company.status === 'deactivated') && (
+          <div style={{marginTop: '1.5rem', borderTop: '1px solid #27272a', paddingTop: '1.5rem'}}>
+              <button onClick={handleDelete} className="web3-button" style={{backgroundColor: '#ef4444', width: '100%'}}>
+                  Elimina Definitivamente
+              </button>
+          </div>
+        )}
         
         <button onClick={onClose} style={{marginTop: '2rem', background: 'none', border: 'none', color: '#a0a0a0', cursor: 'pointer'}}>Chiudi</button>
       </div>
@@ -116,22 +147,20 @@ const CompanyList = () => {
     const [allCompanies, setAllCompanies] = useState<Company[]>([]);
     const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
     const fetchCompanies = useCallback(async () => {
         setIsLoading(true);
-        setError(null);
         try {
             const response = await fetch('/api/get-pending-companies');
-            if (!response.ok) { throw new Error(`Errore HTTP: ${response.status}`); }
             const data = await response.json();
+            if (!response.ok) { throw new Error(data.error || "Errore sconosciuto"); }
             const pending = (data.pending || []).map((p: any) => ({ ...p, status: 'pending' }));
             const active = (data.active || []).map((a: any) => ({ ...a, status: a.status || 'active' }));
             setAllCompanies([...pending, ...active]);
-        } catch (err: any) { setError(`Impossibile caricare i dati: ${err.message}`); }
+        } catch (error) { console.error("Errore caricamento aziende:", error); }
         setIsLoading(false);
     }, []);
 
@@ -152,7 +181,6 @@ const CompanyList = () => {
                     <option value="all">Tutti</option><option value="active">Attivate</option><option value="pending">In Pending</option><option value="deactivated">Disattivate</option>
                 </select>
             </div>
-            {error && <p style={{ color: '#ef4444' }}>{error}</p>}
             <table className="company-table">
                 <thead><tr><th>Stato</th><th>Nome Azienda</th><th>Wallet</th><th>Email</th><th>Azione</th></tr></thead>
                 <tbody>
@@ -174,81 +202,42 @@ const CompanyList = () => {
 };
 
 
-// --- Componente Principale della Pagina Admin (con Logica Corretta) ---
-const AdminContent = () => {
-  const account = useActiveAccount();
-  const [isAllowed, setIsAllowed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkPermissions = async () => {
-      if (account) {
-        setIsLoading(true);
-        console.log("DEBUG: Controllo permessi per l'account:", account.address);
-        
-        try {
-          // --- CORREZIONE CHIAVE: Usiamo la sintassi completa per la lettura ---
-          const [superOwnerResult, ownerResult] = await Promise.all([
-            readContract({ contract, abi, method: "function superOwner() view returns (address)" }),
-            readContract({ contract, abi, method: "function owner() view returns (address)" })
-          ]);
-          
-          console.log("DEBUG: SuperOwner dal contratto:", superOwnerResult);
-          console.log("DEBUG: Owner dal contratto:", ownerResult);
-          
-          const connectedAddress = account.address.toLowerCase();
-          const superOwnerAddress = superOwnerResult.toLowerCase();
-          const ownerAddress = ownerResult ? ownerResult.toLowerCase() : "0x0000000000000000000000000000000000000000";
-
-          if (connectedAddress === superOwnerAddress || connectedAddress === ownerAddress) {
-            console.log("DEBUG: Permessi CONFERMATI.");
-            setIsAllowed(true);
-          } else {
-            console.log("DEBUG: Permessi NEGATI.");
-            setIsAllowed(false);
-          }
-        } catch (e) {
-          console.error("DEBUG: Errore durante il controllo dei permessi:", e);
-          setIsAllowed(false);
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-        setIsAllowed(false);
-      }
-    };
-
-    checkPermissions();
-  }, [account]);
-
-  if (isLoading) {
-    return <p style={{textAlign: 'center', marginTop: '2rem'}}>Verifica permessi in corso...</p>;
-  }
-  
-  if (isAllowed) {
-    return <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div>;
-  }
-  
-  return <h2 style={{ color: '#ef4444', fontSize: '2rem', marginTop: '4rem' }}>❌ ACCESSO NEGATO</h2>;
-};
-
-
+// --- Componente Principale della Pagina Admin ---
 export default function AdminPage() {
-  const account = useActiveAccount();
-  
-  return (
-    <div className="app-container">
-      <main className="main-content" style={{width: '100%'}}>
-        <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 className="page-title">Pannello Amministrazione</h1>
-          <ConnectButton
-            client={client}
-            chain={polygon}
-          />
-        </header>
-        {account ? <AdminContent /> : <p>Connetti il tuo wallet da amministratore per accedere.</p>}
-      </main>
-    </div>
-  );
+    const account = useActiveAccount();
+    const [isAllowed, setIsAllowed] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const checkPermissions = async () => {
+          if (account) {
+            setIsLoading(true);
+            try {
+              const [superOwner, owner] = await Promise.all([
+                readContract({ contract, abi, method: "function superOwner() view returns (address)" }),
+                readContract({ contract, abi, method: "function owner() view returns (address)" })
+              ]);
+              const isAdmin = account.address.toLowerCase() === superOwner.toLowerCase() || (owner && account.address.toLowerCase() === owner.toLowerCase());
+              setIsAllowed(isAdmin);
+            } catch (e) { setIsAllowed(false); }
+            finally { setIsLoading(false); }
+          } else { setIsLoading(false); }
+        };
+        checkPermissions();
+    }, [account]);
+
+    return (
+        <div className="app-container">
+            <main className="main-content" style={{width: '100%'}}>
+                <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h1 className="page-title">Pannello Amministrazione</h1>
+                    <ConnectButton client={client} chain={polygon} />
+                </header>
+                {!account ? <p>Connetti il tuo wallet...</p> : 
+                isLoading ? <p>Verifica permessi...</p> :
+                isAllowed ? <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div> : 
+                <h2 style={{ color: '#ef4444' }}>❌ ACCESSO NEGATO</h2>}
+            </main>
+        </div>
+    );
 }
