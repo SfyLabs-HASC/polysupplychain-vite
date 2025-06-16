@@ -1,194 +1,86 @@
-// FILE: src/pages/AdminPage.tsx
-// Pagina Admin aggiornata con la nuova sintassi V5 e tutte le funzionalità.
+// FILE: src/pages/AziendaPage.tsx
+// Versione completa e corretta che include tutti i suoi componenti interni.
 
-import React, { useState, useEffect, useCallback } from "react";
-import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
-import { createThirdwebClient, getContract, readContract, prepareContractCall } from "thirdweb";
-import { polygon } from "thirdweb/chains";
-import { abi } from "../abi/SupplyChainV2.json";
+import React, { useState } from "react";
+import { ConnectWallet, useAddress, useContract, useContractRead } from "@thirdweb-dev/react";
 import "../App.css";
 
-// Definizione del tipo per un'azienda per una migliore gestione in TypeScript
-type Company = {
-  id: string;
-  companyName: string;
-  walletAddress: `0x${string}`;
-  status: 'active' | 'pending' | 'deactivated';
-  credits?: number;
-  contactEmail?: string;
-};
+const contractAddress = "0x4a866C3A071816E3186e18cbE99a3339f4571302";
 
-// --- Configurazione del Client e del Contratto (nuovo stile V5) ---
-const client = createThirdwebClient({
-  clientId: "e40dfd747fabedf48c5837fb79caf2eb"
-});
+// === Componente 1: Form di Registrazione ===
+const RegistrationForm = () => {
+  const address = useAddress();
+  const [formData, setFormData] = useState({ companyName: "", contactEmail: "", sector: "", website: "", facebook: "", instagram: "", twitter: "", tiktok: "" });
+  const [isSending, setIsSending] = useState(false);
 
-const contract = getContract({ 
-  client, 
-  chain: polygon,
-  address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
-});
-
-
-// --- Componente Modale per la Modifica ---
-const EditCompanyModal = ({ company, onClose, onUpdate }: { company: Company, onClose: () => void, onUpdate: () => void }) => {
-  const [credits, setCredits] = useState(company.credits || 50);
-
-  const updateOffChainStatus = async (action: string) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.companyName || !formData.contactEmail || !formData.sector) { alert("Per favore, compila tutti i campi obbligatori."); return; }
+    setIsSending(true);
     try {
-      await fetch('/api/activate-company', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, walletAddress: company.walletAddress, credits: parseInt(String(credits)), companyName: company.companyName }),
-      });
-      onUpdate();
-    } catch (error) {
-      alert(`Errore nell'aggiornare il database: ${(error as Error).message}`);
-    }
+      const response = await fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...formData, walletAddress: address }) });
+      if (response.ok) { alert('✅ Richiesta inviata con successo!'); } else { throw new Error('Errore del server.'); }
+    } catch (error) { alert('❌ Si è verificato un errore.'); } finally { setIsSending(false); }
   };
 
+  const settori = ["Agricoltura e Allevamento", "Alimentare e Bevande", "Moda e Tessile", "Arredamento e Design", "Cosmetica e Farmaceutica", "Artigianato", "Tecnologia ed Elettronica", "Altro"];
+
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h2>Gestisci: {company.companyName}</h2>
-        <p><strong>Wallet:</strong> {company.walletAddress}</p>
-        <hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
-        
-        <div className="modal-actions">
-          {company.status === 'pending' && (
-            <TransactionButton
-              transaction={() => prepareContractCall({
-                contract,
-                method: "function addContributor(address, string)",
-                params: [company.walletAddress, company.companyName]
-              })}
-              onTransactionConfirmed={() => {
-                alert("Azienda registrata on-chain! Ora imposta i crediti.");
-                updateOffChainStatus('activate'); // Aggiorniamo il DB
-                onClose();
-              }}
-              onError={(error) => alert(`Errore: ${error.message}`)}
-              className="web3-button"
-            >
-              ✅ Attiva Contributor
-            </TransactionButton>
-          )}
-        </div>
-        
-        <div className="form-group" style={{marginTop: '1.5rem'}}>
-          <label>Imposta Crediti</label>
-          <input type="number" value={credits} onChange={(e) => setCredits(Number(e.target.value))} className="form-input" />
-          <TransactionButton
-            transaction={() => prepareContractCall({
-              contract,
-              method: "function setContributorCredits(address, uint256)",
-              params: [company.walletAddress, BigInt(credits)]
-            })}
-            onTransactionConfirmed={() => {
-              alert("Crediti impostati on-chain!");
-              // Non serve aggiornare il DB qui, lo stato non cambia
-            }}
-            onError={(error) => alert(`Errore: ${error.message}`)}
-            className="web3-button" style={{marginTop: '0.5rem', width: '100%'}}
-          >
-            Aggiorna Crediti
-          </TransactionButton>
-        </div>
-        <button onClick={onClose} style={{marginTop: '2rem', background: 'none', border: 'none', color: '#a0a0a0', cursor: 'pointer'}}>
-          Chiudi
-        </button>
-      </div>
+    <div className="card">
+      <h3>Benvenuto su Easy Chain!</h3>
+      <p>Per attivare il tuo account compila queste informazioni:</p>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group"><label htmlFor="company-name">Nome azienda <span style={{color: 'red'}}>*</span></label><input id="company-name" type="text" name="companyName" onChange={handleInputChange} className="form-input" required /></div>
+        <div className="form-group"><label htmlFor="contact-email">Email contatto <span style={{color: 'red'}}>*</span></label><input id="contact-email" type="email" name="contactEmail" onChange={handleInputChange} className="form-input" required /></div>
+        <div className="form-group"><label htmlFor="sector">Settore <span style={{color: 'red'}}>*</span></label><select id="sector" name="sector" onChange={handleInputChange} className="form-input" required><option value="">Seleziona...</option>{settori.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+        <hr style={{ margin: '2rem 0', borderColor: '#27272a' }} />
+        <div className="form-group"><label htmlFor="website">Sito Web (Opzionale)</label><input id="website" type="url" name="website" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="facebook">Facebook (Opzionale)</label><input id="facebook" type="url" name="facebook" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="instagram">Instagram (Opzionale)</label><input id="instagram" type="url" name="instagram" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="twitter">Twitter / X (Opzionale)</label><input id="twitter" type="url" name="twitter" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label htmlFor="tiktok">TikTok (Opzionale)</label><input id="tiktok" type="url" name="tiktok" onChange={handleInputChange} className="form-input" /></div>
+        <button type="submit" className="web3-button" disabled={isSending}>{isSending ? 'Invio...' : 'Invia Richiesta'}</button>
+      </form>
     </div>
   );
 };
 
-// --- Componente per la Lista delle Aziende ---
-const CompanyList = () => {
-    const [allCompanies, setAllCompanies] = useState<Company[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+// === Componente 2: Dashboard per l'utente attivo ===
+const ActiveUserDashboard = () => (
+  <div className="card">
+    <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
+    <p>Benvenuto nella tua dashboard. Ora puoi iniziare a creare le tue filiere.</p>
+  </div>
+);
 
-    const fetchCompanies = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const response = await fetch('/api/get-pending-companies');
-            const data = await response.json();
-            if (response.ok) {
-                const pending = (data.pending || []).map((p: any) => ({ ...p, status: 'pending' }));
-                const active = (data.active || []).map((a: any) => ({ ...a, status: 'active' }));
-                setAllCompanies([...pending, ...active]);
-            } else { throw new Error(data.error); }
-        } catch (error) { console.error("Errore caricamento aziende:", error); }
-        setIsLoading(false);
-    }, []);
+// === Componente principale della pagina ===
+export default function AziendaPage() {
+  const address = useAddress();
+  const { contract } = useContract(contractAddress);
+  const { data: contributorInfo, isLoading: isLoadingStatus } = useContractRead(contract, "getContributorInfo", [address]);
+  const isContributorActive = contributorInfo?.[2] === true;
 
-    useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
-
-    return (
-        <div style={{ marginTop: '2rem' }}>
-            <table className="company-table">
-                <thead><tr><th>Stato</th><th>Nome Azienda</th><th>Wallet Address</th><th>Azione</th></tr></thead>
-                <tbody>
-                    {isLoading ? (<tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Caricamento...</td></tr>) : 
-                     allCompanies.length > 0 ? (
-                        allCompanies.map(c => (
-                        <tr key={c.id}>
-                            <td>{c.status === 'active' ? '✅' : '⏳'}</td>
-                            <td>{c.companyName}</td>
-                            <td>{c.walletAddress}</td>
-                            <td><button onClick={() => setSelectedCompany(c)} className="web3-button" style={{padding: '0.5rem 1rem'}}>Gestisci</button></td>
-                        </tr>
-                        ))) : 
-                     (<tr><td colSpan={4} style={{textAlign: 'center', padding: '2rem'}}>Nessuna azienda trovata.</td></tr>)}
-                </tbody>
-            </table>
-            {selectedCompany && <EditCompanyModal company={selectedCompany} onClose={() => setSelectedCompany(null)} onUpdate={fetchCompanies} />}
-        </div>
-    );
-};
-
-// --- Componente Principale della Pagina Admin ---
-export default function AdminPage() {
-  const account = useActiveAccount();
-  const [isAllowed, setIsAllowed] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkPermissions = async () => {
-      if (account) {
-        setIsLoading(true);
-        try {
-          const [superOwner, owner] = await Promise.all([
-            readContract({ contract, method: "function superOwner() returns (address)" }),
-            readContract({ contract, method: "function owner() returns (address)" })
-          ]);
-          const isAdmin = account.address.toLowerCase() === superOwner.toLowerCase() || (owner && account.address.toLowerCase() === owner.toLowerCase());
-          setIsAllowed(isAdmin);
-        } catch (e) {
-          setIsAllowed(false);
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-        setIsAllowed(false);
-      }
-    };
-    checkPermissions();
-  }, [account]);
+  const renderContent = () => {
+    if (!address) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Connettiti per iniziare.</p>;
+    if (isLoadingStatus) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato...</p>;
+    return isContributorActive ? <ActiveUserDashboard /> : <RegistrationForm />;
+  };
 
   return (
     <div className="app-container">
-      <main className="main-content" style={{width: '100%'}}>
-        <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 className="page-title">Pannello Amministrazione</h1>
-          {/* Pulsante di connessione standard per l'admin */}
-          <ConnectButton client={client} />
+      <aside className="sidebar">
+        <div className="sidebar-header"><h1 className="sidebar-title">Easy Chain</h1></div>
+        {address && (<div className="user-info"><p><strong>Wallet Connesso:</strong></p><p>{address}</p><hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/><p><strong>Crediti:</strong></p><p>{isLoadingStatus ? "..." : contributorInfo?.[1].toString() || "N/A"}</p></div>)}
+      </aside>
+      <main className="main-content">
+        <header className="header">
+          {/* Questo pulsante ora userà la configurazione globale di main.tsx */}
+          <ConnectWallet theme="dark" btnTitle="Accedi / Iscriviti" modalSize="compact"/>
         </header>
-        {!account ? <p>Connetti il tuo wallet...</p> : 
-         isLoading ? <p>Verifica permessi...</p> :
-         isAllowed ? <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div> : 
-         <h2 style={{ color: '#ef4444' }}>❌ ACCESSO NEGATO</h2>}
+        <h2 className="page-title">Portale Aziende</h2>
+        {renderContent()}
       </main>
     </div>
   );

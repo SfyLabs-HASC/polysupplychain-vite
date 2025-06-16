@@ -1,8 +1,9 @@
+// ========================================================================
 // FILE: src/pages/HomePage.tsx
-// Pagina di benvenuto statica con i link alle altre sezioni.
+// Questa è la nuova pagina di presentazione del servizio.
 
 import { Link } from "react-router-dom";
-import "../App.css"; // Assicurati di avere questo file con gli stili
+import "../App.css"; // Usiamo gli stessi stili
 
 export default function HomePage() {
   return (
@@ -15,8 +16,11 @@ export default function HomePage() {
           La soluzione semplice e sicura per certificare la tua filiera produttiva su blockchain.
         </p>
         <div style={{ marginTop: '3rem' }}>
-          <Link to="/azienda" style={{ textDecoration: 'none' }}>
-            <button className="web3-button">ISCRIVITI / ACCEDI</button>
+          {/* Questo è un link che porta alla pagina di login/registrazione delle aziende */}
+          <Link to="/azienda">
+            <button className="web3-button">
+              ISCRIVITI / ACCEDI
+            </button>
           </Link>
         </div>
         <div style={{ marginTop: '1rem' }}>

@@ -10,20 +10,24 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "firebase-admin": "^12.1.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.23.1",
-    "resend": "^3.2.0",
-    "thirdweb": "^5.26.0"
+    "@thirdweb-dev/react": "^4.9.4",
+    "firebase-admin": "^13.4.0",
+    "react": "^18.3",
+    "react-dom": "^18.3",
+    "react-router-dom": "^7.6.2",
+    "resend": "^4.5.2",
+    "thirdweb": "^5"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@vitejs/plugin-react": "^4.2.1",
-    "eslint": "^8.57.0",
+    "autoprefixer": "^10.4.17",
+    "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.6",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5.2.2",
     "vite": "^5.2.0"
   }
