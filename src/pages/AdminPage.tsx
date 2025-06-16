@@ -173,6 +173,7 @@ const CompanyList = () => {
     );
 };
 
+
 // --- Componente Principale della Pagina Admin (con Logica Corretta) ---
 const AdminContent = () => {
   const account = useActiveAccount();
@@ -181,15 +182,15 @@ const AdminContent = () => {
 
   useEffect(() => {
     const checkPermissions = async () => {
-      // Eseguiamo il controllo solo se l'account è connesso
       if (account) {
         setIsLoading(true);
         console.log("DEBUG: Controllo permessi per l'account:", account.address);
         
         try {
+          // --- CORREZIONE CHIAVE: Usiamo la sintassi completa per la lettura ---
           const [superOwnerResult, ownerResult] = await Promise.all([
-            readContract({ contract, abi, method: "superOwner" }),
-            readContract({ contract, abi, method: "owner" })
+            readContract({ contract, abi, method: "function superOwner() view returns (address)" }),
+            readContract({ contract, abi, method: "function owner() view returns (address)" })
           ]);
           
           console.log("DEBUG: SuperOwner dal contratto:", superOwnerResult);
@@ -213,16 +214,14 @@ const AdminContent = () => {
           setIsLoading(false);
         }
       } else {
-        // Se non c'è un account, non è permesso e non sta caricando
         setIsLoading(false);
         setIsAllowed(false);
       }
     };
 
     checkPermissions();
-  }, [account]); // L'effetto si attiva ogni volta che l'account cambia
+  }, [account]);
 
-  // Logica di visualizzazione
   if (isLoading) {
     return <p style={{textAlign: 'center', marginTop: '2rem'}}>Verifica permessi in corso...</p>;
   }
@@ -245,10 +244,9 @@ export default function AdminPage() {
           <h1 className="page-title">Pannello Amministrazione</h1>
           <ConnectButton
             client={client}
-            chain={polygon} // Impostiamo Polygon come rete di default per questo pulsante
+            chain={polygon}
           />
         </header>
-        {/* Mostriamo il contenuto solo se il wallet è connesso */}
         {account ? <AdminContent /> : <p>Connetti il tuo wallet da amministratore per accedere.</p>}
       </main>
     </div>

@@ -1,24 +1,14 @@
 // FILE: src/pages/AziendaPage.tsx
 // QUESTA È LA VERSIONE FINALE E COMPLETA CHE INCLUDE TUTTE LE FUNZIONALITÀ
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
-import { createThirdwebClient, getContract, readContract, prepareContractCall } from "thirdweb";
+import { createThirdwebClient, getContract, readContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 
-// Definizione del tipo per un'azienda per una migliore gestione
-type Company = {
-  id: string;
-  companyName: string;
-  walletAddress: `0x${string}`;
-  status: 'active' | 'pending' | 'deactivated';
-  credits?: number;
-  contactEmail?: string;
-};
-
-// Configurazione del Client e del Contratto
+// --- Configurazione del Client e del Contratto ---
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
 const contract = getContract({ 
   client, 
@@ -30,7 +20,10 @@ const contract = getContract({
 // --- Componente: Form di Registrazione (Completo) ---
 const RegistrationForm = () => {
   const account = useActiveAccount();
-  const [formData, setFormData] = useState({ companyName: "", contactEmail: "", sector: "", website: "", facebook: "", instagram: "", twitter: "", tiktok: "" });
+  const [formData, setFormData] = useState({
+    companyName: "", contactEmail: "", sector: "", website: "",
+    facebook: "", instagram: "", twitter: "", tiktok: "",
+  });
   const [isSending, setIsSending] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -48,7 +41,7 @@ const RegistrationForm = () => {
       const response = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, walletAddress: account?.address })
+        body: JSON.stringify({ ...formData, walletAddress: account?.address }),
       });
       if (response.ok) {
         alert('✅ Richiesta inviata con successo! Verrai contattato a breve.');
@@ -64,7 +57,7 @@ const RegistrationForm = () => {
   };
 
   const settori = ["Agricoltura e Allevamento", "Alimentare e Bevande", "Moda e Tessile", "Arredamento e Design", "Cosmetica e Farmaceutica", "Artigianato", "Tecnologia ed Elettronica", "Altro"];
-  
+
   return (
     <div className="card">
       <h3>Benvenuto su Easy Chain!</h3>
@@ -75,47 +68,117 @@ const RegistrationForm = () => {
         <div className="form-group"><label>Settore <span style={{color: 'red'}}>*</span></label><select name="sector" onChange={handleInputChange} className="form-input" required><option value="">Seleziona...</option>{settori.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
         <hr style={{ margin: '2rem 0', borderColor: '#27272a' }} />
         <div className="form-group"><label>Sito Web (Opzionale)</label><input type="url" name="website" onChange={handleInputChange} className="form-input" /></div>
-        {/* Potresti aggiungere qui gli altri campi social se vuoi */}
-        <button type="submit" className="web3-button" disabled={isSending}>{isSending ? 'Invio in corso...' : 'Invia Richiesta di Attivazione'}</button>
+        <div className="form-group"><label>Facebook (Opzionale)</label><input type="url" name="facebook" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label>Instagram (Opzionale)</label><input type="url" name="instagram" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label>Twitter / X (Opzionale)</label><input type="url" name="twitter" onChange={handleInputChange} className="form-input" /></div>
+        <div className="form-group"><label>TikTok (Opzionale)</label><input type="url" name="tiktok" onChange={handleInputChange} className="form-input" /></div>
+        <button type="submit" className="web3-button" disabled={isSending}>
+          {isSending ? 'Invio in corso...' : 'Invia Richiesta di Attivazione'}
+        </button>
       </form>
     </div>
   );
 };
 
 
-// --- Componente: Dashboard per l'Utente Attivo (Completo) ---
+// --- Componente: Dashboard per l'Utente Attivo (con le modali) ---
 const ActiveUserDashboard = () => {
+  const [modal, setModal] = useState<'init' | 'add' | 'close' | null>(null);
+  const [activeBatchId, setActiveBatchId] = useState<bigint | null>(null);
+
+  const handleTransactionSuccess = (receipt: any, type: 'init' | 'add' | 'close') => {
+    setModal(null); // Chiude la modale in ogni caso
+    if (type === 'init') {
+      try {
+        const events = parseEventLogs({ logs: receipt.logs, abi, eventName: "BatchInitialized" });
+        const newBatchId = events[0].args.batchId;
+        setActiveBatchId(newBatchId);
+        alert(`✅ Batch Inizializzato! Nuovo ID: ${newBatchId}`);
+      } catch (e) {
+        alert("✅ Batch creato, ma non è stato possibile recuperare il nuovo ID.");
+      }
+    } else if (type === 'add') {
+      alert(`✅ Step aggiunto al batch ${activeBatchId}!`);
+    } else if (type === 'close') {
+      alert(`✅ Batch ${activeBatchId} chiuso con successo!`);
+      setActiveBatchId(null);
+    }
+  };
+  
   return (
     <div className="card">
       <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
-      <p>Benvenuto nella tua dashboard. Clicca il pulsante per creare un batch di prova. Il gas sarà sponsorizzato da noi.</p>
-      <TransactionButton
-        transaction={() => prepareContractCall({
-          contract,
-          abi,
-          method: "initializeBatch",
-          params: [
-            "Lotto Prova Gasless",
-            "Creato con la piattaforma Easy Chain",
-            new Date().toLocaleDateString(),
-            "Web App",
-            "ipfs://Qmb8wsGZNXt5VzNeskST5kM2p2p2j64z9u2G2K4o22V222"
-          ]
-        })}
-        onTransactionConfirmed={() => {
-          alert("✅ Batch creato con successo! La transazione è stata sponsorizzata.");
-        }}
-        onError={(error) => {
-          alert(`❌ Errore durante la creazione del batch: ${error.message}`);
-        }}
-        className="web3-button"
-      >
-        Crea Batch di Prova
-      </TransactionButton>
+      <p>Benvenuto nella tua dashboard. Le seguenti azioni sono sponsorizzate (gasless).</p>
+      
+      {activeBatchId && <p>Stai lavorando sul Batch ID: <strong>{activeBatchId.toString()}</strong></p>}
+
+      <div className="modal-actions">
+        <button className="web3-button" onClick={() => setModal('init')}>1. Inizializza Batch</button>
+        <button className="web3-button" onClick={() => setModal('add')} disabled={!activeBatchId}>2. Aggiungi Step</button>
+        <button className="web3-button" onClick={() => setModal('close')} disabled={!activeBatchId} style={{backgroundColor: '#ef4444'}}>3. Chiudi Batch</button>
+      </div>
+
+      {modal === 'init' && (
+        <FormModal title="Inizializza Nuovo Batch" onClose={() => setModal(null)}>
+          <p>Stai per creare un nuovo batch. I dati sono pre-compilati per questo test.</p>
+          <TransactionButton
+            transaction={() => prepareContractCall({
+              contract, abi, method: "initializeBatch",
+              params: [ "Lotto Prova Gasless", "Descrizione di prova", new Date().toLocaleDateString(), "Web App", "ipfs://..."]
+            })}
+            onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'init')}
+            onError={(error) => alert(`❌ Errore: ${error.message}`)}
+          >
+            Conferma Inizializzazione
+          </TransactionButton>
+        </FormModal>
+      )}
+      {modal === 'add' && activeBatchId && (
+        <FormModal title={`Aggiungi Step al Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
+           <p>Stai per aggiungere uno step al batch corrente.</p>
+           <TransactionButton
+            transaction={() => prepareContractCall({
+              contract, abi, method: "addStepToBatch",
+              params: [ activeBatchId, "Nuovo Step", "Dettagli...", new Date().toLocaleDateString(), "Luogo...", "ipfs://..."]
+            })}
+            onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'add')}
+            onError={(error) => alert(`❌ Errore: ${error.message}`)}
+          >
+            Conferma Aggiunta Step
+          </TransactionButton>
+        </FormModal>
+      )}
+      {modal === 'close' && activeBatchId && (
+        <FormModal title={`Chiudi Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
+           <p>Sei sicuro di voler chiudere questo batch? L'azione è irreversibile e consumerà 1 credito.</p>
+           <TransactionButton
+            transaction={() => prepareContractCall({ contract, abi, method: "closeBatch", params: [activeBatchId] })}
+            onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'close')}
+            onError={(error) => alert(`❌ Errore: ${error.message}`)}
+            style={{backgroundColor: '#ef4444'}}
+          >
+            Conferma Chiusura
+          </TransactionButton>
+        </FormModal>
+      )}
     </div>
   );
 };
 
+
+// --- Componente generico per la Modale ---
+const FormModal = ({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) => {
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <h2>{title}</h2>
+                <hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
+                {children}
+                <button onClick={onClose} style={{marginTop: '2rem', background: 'none', border: 'none', color: '#a0a0a0', cursor: 'pointer'}}>Annulla</button>
+            </div>
+        </div>
+    )
+}
 
 // --- Componente Principale della Pagina ---
 export default function AziendaPage() {
@@ -126,29 +189,16 @@ export default function AziendaPage() {
 
   useEffect(() => {
     const checkStatus = async () => {
-      if (!account) {
-        setIsLoading(false);
-        setIsActive(false);
-        return;
-      }
-
+      if (!account) { setIsLoading(false); setIsActive(false); return; }
       setIsLoading(true);
       try {
-        const data = await readContract({
-          contract,
-          abi,
-          method: "getContributorInfo",
-          params: [account.address]
-        });
+        const data = await readContract({ contract, abi, method: `function getContributorInfo(address) returns (tuple(string name, uint256 credits, bool isActive))`, params: [account.address] });
         setIsActive(data[2]);
         setCredits(data[1].toString());
       } catch (e) {
-        // Se la lettura fallisce (l'utente non è nel mapping), non è attivo.
         setIsActive(false);
         setCredits("N/A");
-      } finally {
-        setIsLoading(false);
-      }
+      } finally { setIsLoading(false); }
     };
     checkStatus();
   }, [account]);
@@ -163,29 +213,11 @@ export default function AziendaPage() {
     <div className="app-container">
       <aside className="sidebar">
         <div className="sidebar-header"><h1 className="sidebar-title">Easy Chain</h1></div>
-        {account && (
-          <div className="user-info">
-            <p><strong>Wallet Connesso:</strong></p>
-            <p style={{wordBreak: 'break-all'}}>{account.address}</p>
-            <hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/>
-            <p><strong>Crediti Rimanenti:</strong></p>
-            <p>{isLoading ? "..." : credits}</p>
-          </div>
-        )}
+        {account && (<div className="user-info"><p><strong>Wallet Connesso:</strong></p><p style={{wordBreak: 'break-all'}}>{account.address}</p><hr style={{ borderColor: '#27272a', margin: '1rem 0' }}/><p><strong>Crediti:</strong></p><p>{isLoading ? "..." : credits}</p></div>)}
       </aside>
       <main className="main-content">
         <header className="header">
-          <ConnectButton
-            client={client}
-            accountAbstraction={{
-              chain: polygon,
-              sponsorGas: true,
-            }}
-            appMetadata={{
-              name: "Easy Chain",
-              url: "https://easychain.com",
-            }}
-          />
+          <ConnectButton client={client} accountAbstraction={{ chain: polygon, sponsorGas: true }}/>
         </header>
         <h2 className="page-title">Portale Aziende</h2>
         {renderContent()}
