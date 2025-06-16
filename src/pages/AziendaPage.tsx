@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, readContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { abi } from "../abi/SupplyChainV2.json";
+import { abi } from "../abi/contractABI";
 import "../App.css";
 
 // --- Configurazione del Client e del Contratto (nuovo stile V5) ---

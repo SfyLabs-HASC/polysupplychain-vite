@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, readContract, prepareContractCall } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { abi } from "../abi/SupplyChainV2.json";
+import { abi } from "../abi/contractABI";
 import "../App.css";
 
 // Definizione del tipo per un'azienda per una migliore gestione
