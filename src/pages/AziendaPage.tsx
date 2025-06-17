@@ -32,6 +32,7 @@ const RegistrationForm = () => {
     );
 };
 
+// --- MODIFICA QUI: Il popup della descrizione ora ha uno stile migliorato ---
 const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
     const { data: batchInfo } = useReadContract({ contract, abi, method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", params: [batchId] });
@@ -61,10 +62,16 @@ const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) =>
             </tr>
             {showDescription && (
                 <div className="modal-overlay" onClick={() => setShowDescription(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h2>Descrizione Iscrizione / Lotto</h2>
-                        <p style={{whiteSpace: 'pre-wrap', maxHeight: '60vh', overflowY: 'auto'}}>{description || 'Nessuna descrizione fornita.'}</p>
-                        <button onClick={() => setShowDescription(false)} className="web3-button" style={{marginTop: '1rem', width: '100%'}}>Chiudi</button>
+                    <div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                          <h2>Descrizione Iscrizione / Lotto</h2>
+                        </div>
+                        <div className="modal-body">
+                          <p>{description || 'Nessuna descrizione fornita.'}</p>
+                        </div>
+                        <div className="modal-footer">
+                          <button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button>
+                        </div>
                     </div>
                 </div>
             )}
