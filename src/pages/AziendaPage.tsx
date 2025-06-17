@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE E COMPLETA CHE INCLUDE TUTTE LE FUNZIONALITÀ CORRETTE
+// QUESTA È LA VERSIONE COMPLETA E CORRETTA
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
@@ -17,8 +17,15 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
+// --- Definizione del Tipo per i dati del Contributor (basato su ABI) ---
+type ContributorInfo = {
+  name: string;
+  credits: bigint;
+  isActive: boolean;
+};
 
-// --- Componente: Form di Registrazione (Completo) ---
+
+// --- Componente: Form di Registrazione (Invariato) ---
 const RegistrationForm = () => {
   const account = useActiveAccount();
   const [formData, setFormData] = useState({
@@ -82,7 +89,7 @@ const RegistrationForm = () => {
 };
 
 
-// --- Componente: Dashboard per l'Utente Attivo (con le modali) ---
+// --- Componente: Dashboard per l'Utente Attivo (Invariato) ---
 const ActiveUserDashboard = () => {
   const [modal, setModal] = useState<'init' | 'add' | 'close' | null>(null);
   const [activeBatchId, setActiveBatchId] = useState<bigint | null>(null);
@@ -137,8 +144,8 @@ const ActiveUserDashboard = () => {
       }
       {modal === 'add' && activeBatchId &&
         <FormModal title={`Aggiungi Step al Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
-           <p>Stai per aggiungere uno step al batch corrente.</p>
-           <TransactionButton
+          <p>Stai per aggiungere uno step al batch corrente.</p>
+          <TransactionButton
             transaction={() => prepareContractCall({
               contract, abi, method: "addStepToBatch",
               params: [ activeBatchId, "Nuovo Step", "Dettagli...", new Date().toLocaleDateString(), "Luogo...", "ipfs://..."]
@@ -153,8 +160,8 @@ const ActiveUserDashboard = () => {
       }
       {modal === 'close' && activeBatchId &&
         <FormModal title={`Chiudi Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
-           <p>Sei sicuro di voler chiudere questo batch? L'azione è irreversibile e consumerà 1 credito.</p>
-           <TransactionButton
+          <p>Sei sicuro di voler chiudere questo batch? L'azione è irreversibile e consumerà 1 credito.</p>
+          <TransactionButton
             transaction={() => prepareContractCall({ contract, abi, method: "closeBatch", params: [activeBatchId] })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'close')}
             onError={(error) => alert(`❌ Errore: ${error.message}`)}
@@ -169,7 +176,7 @@ const ActiveUserDashboard = () => {
 };
 
 
-// --- Componente generico per la Modale ---
+// --- Componente generico per la Modale (Invariato) ---
 const FormModal = ({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) => {
     return (
         <div className="modal-overlay">
@@ -190,6 +197,7 @@ export default function AziendaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [credits, setCredits] = useState("N/A");
 
+  // --- BLOCCO MODIFICATO E CORRETTO ---
   useEffect(() => {
     const checkStatus = async () => {
       if (!account) {
@@ -201,26 +209,25 @@ export default function AziendaPage() {
 
       setIsLoading(true);
       try {
-        // CORREZIONE DEFINITIVA: Usiamo la sintassi semplice e interpretiamo la risposta come un array.
+        // SOLUZIONE: Chiama il contratto e tratta la risposta come un oggetto con proprietà nominali.
         const data = await readContract({
           contract,
           abi,
           method: "getContributorInfo",
           params: [account.address]
-        }) as [string, bigint, boolean];
-        
-        // Accediamo ai dati con gli indici dell'array:
-        // data[0] è il nome (string)
-        // data[1] sono i crediti (bigint)
-        // data[2] è lo stato di attivazione (boolean)
-        const contributorIsActive = data[2];
-        const contributorCredits = data[1].toString();
+        }) as ContributorInfo; // Usa il tipo che abbiamo definito
+
+        // Accedi ai dati usando i nomi delle proprietà, come confermato dall'ABI.
+        const contributorIsActive = data.isActive;
+        const contributorCredits = data.credits.toString();
 
         setIsActive(contributorIsActive);
         setCredits(contributorCredits);
 
       } catch (e) {
         // Questo errore è normale se l'utente non è ancora stato registrato.
+        // La UI mostrerà il form di registrazione.
+        console.error("Info: Utente non trovato nel contratto (normale se non ancora registrato).", e);
         setIsActive(false);
         setCredits("N/A");
       } finally {
