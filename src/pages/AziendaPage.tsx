@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON UX AGGIORNATA: VALIDAZIONE, FORMATO DATA, TOOLTIP DESCRIZIONE, LIMITI CARATTERI E UPLOAD IMMAGINE
+// VERSIONE FINALE CON LAYOUT GRAFICO CORRETTO E TUTTE LE FUNZIONALITÀ RICHIESTE
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
@@ -18,7 +18,7 @@ const contract = getContract({
 });
 
 // ==================================================================
-// DEFINIZIONE DI TUTTI I COMPONENTI HELPER
+// DEFINIZIONE DEI COMPONENTI HELPER
 // ==================================================================
 
 const RegistrationForm = () => {
@@ -31,6 +31,7 @@ const RegistrationForm = () => {
 };
 
 const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) => {
+    const [showDescription, setShowDescription] = useState(false);
     const { data: batchInfo } = useReadContract({ contract, abi, method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", params: [batchId] });
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batchId] });
     
@@ -40,7 +41,6 @@ const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) =>
     const location = batchInfo?.[6];
     const isClosed = batchInfo?.[8];
 
-    // Funzione per formattare la data in formato italiano
     const formatDate = (dateStr: string | undefined) => {
         if (!dateStr || dateStr.split('-').length !== 3) return '/';
         const [year, month, day] = dateStr.split('-');
@@ -48,31 +48,37 @@ const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) =>
     };
 
     return (
-        <tr>
-            <td>{localId}</td>
-            {/* La descrizione ora è un tooltip sul nome */}
-            <td className="name-cell" title={description || 'Nessuna descrizione fornita'}>
-                {name || '/'}
-            </td>
-            <td>{formatDate(dateRaw)}</td>
-            <td>{location || '/'}</td>
-            <td>{stepCount !== undefined ? stepCount.toString() : '/'}</td>
-            <td>
-                {batchInfo ? (
-                    isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>
-                ) : '...'}
-            </td>
-            <td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td>
-        </tr>
+        <>
+            <tr>
+                <td>{localId}</td>
+                <td>{name || '/'}</td>
+                <td>
+                    <button onClick={() => setShowDescription(true)} className="web3-button">Leggi</button>
+                </td>
+                <td>{formatDate(dateRaw)}</td>
+                <td>{location || '/'}</td>
+                <td>{stepCount !== undefined ? stepCount.toString() : '/'}</td>
+                <td>
+                    {batchInfo ? (
+                        isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>
+                    ) : '...'}
+                </td>
+                <td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td>
+            </tr>
+            {showDescription && (
+                <div className="modal-overlay" onClick={() => setShowDescription(false)}>
+                    <div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div>
+                        <div className="modal-body"><p>{description || 'Nessuna descrizione fornita.'}</p></div>
+                        <div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 
-// Interfaccia per i metadati dei batch (per il filtro)
-interface BatchMetadata {
-    id: string;
-    batchId: bigint;
-    name: string;
-}
+interface BatchMetadata { id: string; batchId: bigint; name: string; }
 
 const BatchTable = ({ batches }: { batches: (BatchMetadata & { localId: number })[] }) => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -85,20 +91,18 @@ const BatchTable = ({ batches }: { batches: (BatchMetadata & { localId: number }
     const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow);
 
     useEffect(() => { setCurrentPage(1); setItemsToShow(10); }, [batches]);
-
     const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE));
     const handlePageChange = (page: number) => { if (page < 1 || page > totalPages) return; setCurrentPage(page); setItemsToShow(10); };
     
     return (
         <div className="table-container">
             <table className="company-table">
-                {/* Rimuoviamo la colonna Descrizione dall'header */}
-                <thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr></thead>
+                <thead><tr><th>ID</th><th>Nome</th><th>Descrizione</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr></thead>
                 <tbody>
                     {visibleBatches.length > 0 ? (
                         visibleBatches.map(batch => <BatchRow key={batch.id} batchId={batch.batchId} localId={batch.localId} />)
                     ) : (
-                        <tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>
+                        <tr><td colSpan={8} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>
                     )}
                 </tbody>
             </table>
@@ -149,11 +153,9 @@ export default function AziendaPage() {
     
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     const [modal, setModal] = useState<'init' | null>(null);
-    
-    // Stato per il form di Nuova Iscrizione, con i limiti di caratteri
     const [formData, setFormData] = useState({ name: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     
     const [allBatches, setAllBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
     const [filteredBatches, setFilteredBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
@@ -197,10 +199,7 @@ export default function AziendaPage() {
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) {
-            setSelectedFile(file);
-            setPreviewUrl(URL.createObjectURL(file));
-        }
+        setSelectedFile(file || null);
     };
 
     const handleInitializeBatch = async () => {
@@ -209,19 +208,34 @@ export default function AziendaPage() {
             return;
         }
         let imageIpfsHash = "N/A";
-        // Qui andrà la logica di upload a IPFS...
-        const transaction = prepareContractCall({ 
-            contract, abi, 
-            method: "function initializeBatch(string,string,string,string,string)", 
-            params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] 
-        });
-        sendTransaction(transaction, { 
-            onSuccess: () => { 
-                alert('✅ Iscrizione creata! La lista si aggiornerà a breve.');
-                setModal(null); setSelectedFile(null); setPreviewUrl(null);
-            },
-            onError: (err) => alert(`❌ Errore: ${err.message}`) 
-        });
+        setIsUploading(true);
+        try {
+            if (selectedFile) {
+                const formDataForUpload = new FormData();
+                formDataForUpload.append("image", selectedFile);
+                const response = await fetch('/api/upload', { method: 'POST', body: formDataForUpload });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Errore durante l_upload dell_immagine.');
+                imageIpfsHash = data.uri;
+            }
+            setIsUploading(false);
+
+            const transaction = prepareContractCall({ 
+                contract, abi, 
+                method: "function initializeBatch(string,string,string,string,string)", 
+                params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] 
+            });
+            sendTransaction(transaction, { 
+                onSuccess: () => { 
+                    alert('✅ Iscrizione creata! La lista si aggiornerà a breve.');
+                    setModal(null); setSelectedFile(null);
+                },
+                onError: (err) => alert(`❌ Errore nella transazione: ${err.message}`) 
+            });
+        } catch (error: any) {
+            setIsUploading(false);
+            alert(`❌ Fallimento: ${error.message}`);
+        }
     };
 
     if (!account) {
@@ -285,12 +299,14 @@ export default function AziendaPage() {
                              <div className="form-group">
                                 <label>Immagine</label>
                                 <input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>
-                                {previewUrl && <img src={previewUrl} alt="Anteprima" className="image-preview" />}
+                                {selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}
                              </div>
                         </div>
                         <div className="modal-footer">
                             <button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button>
-                            <button onClick={handleInitializeBatch} disabled={isPending} className="web3-button">{isPending ? "In corso..." : "Conferma"}</button>
+                            <button onClick={handleInitializeBatch} disabled={isPending || isUploading} className="web3-button">
+                                {isUploading ? "Caricamento..." : (isPending ? "Conferma..." : "Conferma")}
+                            </button>
                         </div>
                     </div>
                 </div>
