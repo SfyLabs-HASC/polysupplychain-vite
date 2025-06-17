@@ -1,11 +1,12 @@
 // FILE: src/pages/AziendaPage.tsx
-// QUESTA È LA VERSIONE FINALE CHE CORREGGE LA LOGICA DI CONTROLLO E TUTTE LE FUNZIONALITÀ
+// QUESTA È LA VERSIONE FINALE CHE CORREGGE L'ERRORE DI IMPORTAZIONE DELL'ABI
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
 import { createThirdwebClient, getContract, readContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
 import { inAppWallet } from "thirdweb/wallets";
+// CORREZIONE CHIAVE: Importiamo 'supplyChainABI' e lo rinominiamo in 'abi'
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 
@@ -198,26 +199,20 @@ export default function AziendaPage() {
         setCredits("N/A");
         return;
       }
-
       setIsLoading(true);
       try {
-        // CORREZIONE DEFINITIVA: Usiamo la sintassi corretta per la chiamata e interpretiamo la risposta come un OGGETTO.
         const data = await readContract({
           contract,
           abi,
           method: "getContributorInfo",
           params: [account.address]
-        });
+        }) as [string, bigint, boolean];
         
-        // La risposta è un oggetto con le proprietà nominate nell'ABI
-        const contributorIsActive = data.isActive;
-        const contributorCredits = data.credits.toString();
-
+        const contributorIsActive = data[2];
+        const contributorCredits = data[1].toString();
         setIsActive(contributorIsActive);
         setCredits(contributorCredits);
-
       } catch (e) {
-        // Questo errore è normale se l'utente non è ancora stato registrato.
         setIsActive(false);
         setCredits("N/A");
       } finally {
