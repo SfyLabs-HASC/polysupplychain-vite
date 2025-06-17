@@ -1,10 +1,9 @@
-// src/firebaseConfig.ts
+// FILE: src/firebaseConfig.ts
 
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Leggiamo le credenziali dalle Environment Variables fornite da Vercel.
-// Il prefisso VITE_ è necessario per renderle accessibili nel frontend.
+// Leggiamo le credenziali dalle Environment Variables di Vercel.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -15,13 +14,14 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Controlla che le variabili siano state caricate correttamente per evitare errori
+// Controlla che le variabili siano state caricate per un debug più facile
 if (!firebaseConfig.projectId) {
-  throw new Error("Configurazione di Firebase non trovata. Assicurati di aver impostato le variabili d'ambiente su Vercel.");
+  console.error("Configurazione di Firebase non trovata. Assicurati di aver impostato le variabili d'ambiente VITE_ su Vercel e di aver fatto un redeploy.");
 }
 
-// Inizializza i servizi di Firebase
-const app = initializeApp(firebaseConfig);
+// Inizializza Firebase solo se non è già stato fatto per evitare errori
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
 const db = getFirestore(app);
 
 // Esporta le istanze per poterle usare nel resto dell'applicazione

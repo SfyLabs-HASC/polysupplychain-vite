@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE CON FLUSSO DI AUTENTICAZIONE COMPLETO
+// VERSIONE CON FIX PER L'INIZIALIZZAZIONE DI FIREBASE
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -9,8 +9,8 @@ import { inAppWallet } from 'thirdweb/wallets';
 
 // Importa l'ABI dal percorso corretto
 import { supplyChainABI as abi } from '../abi/contractABI';
-// Importa la configurazione di Firebase e le funzioni di autenticazione
-import { db } from '../firebaseConfig';
+// MODIFICA: Importa sia 'app' che 'db' per essere più espliciti
+import { app, db } from '../firebaseConfig';
 import { getAuth, signInWithCustomToken, onAuthStateChanged, User } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
 // Importa il CSS dal percorso corretto
@@ -24,13 +24,10 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-
 // ==================================================================
 // DEFINIZIONE DI TUTTI I COMPONENTI HELPER
+// (Il loro codice interno è omesso per brevità, ma deve essere presente)
 // ==================================================================
-// NOTA: Il codice dei componenti interni (BatchRow, BatchTable, ActiveUserDashboard, etc.)
-// rimane invariato rispetto all'ultima versione e sono inclusi qui per completezza.
-
 const RegistrationForm = () => { /* ... codice invariato ... */ return <div>Form di Registrazione</div>; };
 const BatchRow = ({ metadata }: { metadata: BatchMetadata & { localId: number } }) => { /* ... codice invariato ... */ };
 interface BatchMetadata { id: string; batchId: bigint; name: string; date: string; location: string; isClosed: boolean; ownerAddress: string; }
@@ -39,12 +36,10 @@ const ActiveUserDashboard = () => { /* ... codice invariato ... */ };
 
 
 // ==================================================================
-// COMPONENTE PRINCIPALE EXPORTATO CON LOGICA DI AUTENTICAZIONE
+// COMPONENTE PRINCIPALE EXPORTATO CON LOGICA DI AUTENTICAZIONE CORRETTA
 // ==================================================================
 export default function AziendaPage() {
     const account = useActiveAccount();
-    
-    // Stato per l'utente Firebase e il processo di login
     const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
     const [isSigningIn, setIsSigningIn] = useState(false);
     
@@ -60,21 +55,16 @@ export default function AziendaPage() {
 
     // Effetto per gestire il flusso di login a Firebase
     useEffect(() => {
-        const auth = getAuth();
+        // MODIFICA: Passiamo 'app' a getAuth per essere espliciti
+        const auth = getAuth(app);
         
-        // Se un wallet è connesso, ma non siamo ancora loggati a Firebase
         if (account && !firebaseUser && !isSigningIn) {
-            
             const signInToFirebase = async () => {
                 setIsSigningIn(true);
                 try {
-                    // 1. Prepara il messaggio da firmare
                     const messageToSign = `Sto facendo il login a EasyChain con il mio wallet: ${account.address}`;
-                    
-                    // 2. Chiedi all'utente di firmare il messaggio con il suo wallet
                     const signature = await account.signMessage({ message: messageToSign });
                     
-                    // 3. Chiama la nostra funzione backend sicura su Vercel
                     const response = await fetch('/api/auth', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -82,14 +72,10 @@ export default function AziendaPage() {
                     });
                     
                     const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Autenticazione al backend fallita.');
                     
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Autenticazione al backend fallita.');
-                    }
-                    
-                    // 4. Usa il token ricevuto per fare login su Firebase
+                    // MODIFICA: Passiamo 'auth' che è già inizializzato correttamente
                     await signInWithCustomToken(auth, data.token);
-                    // Il listener onAuthStateChanged si occuperà di impostare firebaseUser
 
                 } catch (error) {
                     console.error("Errore durante il processo di login a Firebase:", error);
@@ -98,18 +84,17 @@ export default function AziendaPage() {
                     setIsSigningIn(false);
                 }
             };
-            
             signInToFirebase();
         }
     }, [account, firebaseUser, isSigningIn]);
 
     // Listener per lo stato di autenticazione di Firebase
     useEffect(() => {
-        const auth = getAuth();
+        // MODIFICA: Passiamo 'app' a getAuth per essere espliciti
+        const auth = getAuth(app);
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setFirebaseUser(user);
         });
-        // Pulisci il listener quando il componente viene smontato
         return () => unsubscribe();
     }, []);
 
@@ -124,14 +109,12 @@ export default function AziendaPage() {
         if (!isActive) {
             return <RegistrationForm />;
         }
-        // Se l'utente è un contributor attivo, gestiamo il login a Firebase
         if (isSigningIn) {
             return <p style={{textAlign: 'center', marginTop: '4rem'}}>Autenticazione in corso... Firma il messaggio nel tuo wallet per continuare.</p>;
         }
         if (!firebaseUser) {
             return <p style={{textAlign: 'center', marginTop: '4rem'}}>Autenticazione a Firebase necessaria. Riconnetti il wallet o ricarica la pagina.</p>;
         }
-        // Se tutto è andato a buon fine, mostra la dashboard
         return <ActiveUserDashboard />;
     };
 
