@@ -1,10 +1,8 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON PULSANTE "LEGGI" NELLA COLONNA DESCRIZIONE AGGIORNATO
+// VERSIONE CON POPUP DI ISCRIZIONE COMPLETO E GESTIONE CAMPI VUOTI
 
 import React, { useState, useEffect, useMemo } from 'react';
-// MODIFICA CORRETTA: Qui ci sono solo gli HOOKS e i COMPONENTI di React
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
-// MODIFICA CORRETTA: Qui ci sono le FUNZIONI CORE, incluso readContract
 import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
@@ -37,6 +35,7 @@ const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) =>
     const { data: batchInfo } = useReadContract({ contract, abi, method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", params: [batchId] });
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batchId] });
     
+    // MODIFICA QUI: Usiamo l'operatore || per mostrare '/' se il dato è vuoto o nullo
     const name = batchInfo?.[3];
     const description = batchInfo?.[4];
     const date = batchInfo?.[5];
@@ -48,13 +47,8 @@ const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) =>
             <tr>
                 <td>{localId}</td>
                 <td>{name || '/'}</td>
-                {/* --- MODIFICA QUI: Cambiato da 'link-button' a 'web3-button' --- */}
                 <td>
-                    {description ? (
-                        <button onClick={() => setShowDescription(true)} className="web3-button">Leggi</button>
-                    ) : (
-                        <span>/</span>
-                    )}
+                    <button onClick={() => setShowDescription(true)} className="web3-button">Leggi</button>
                 </td>
                 <td>{date || '/'}</td>
                 <td>{location || '/'}</td>
@@ -160,7 +154,15 @@ export default function AziendaPage() {
     
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     const [modal, setModal] = useState<'init' | null>(null);
-    const [formData, setFormData] = useState({ batchName: "", batchDescription: "" });
+    
+    // MODIFICA QUI: Aggiunti i nuovi campi allo stato del form
+    const [formData, setFormData] = useState({ 
+        name: "", 
+        description: "",
+        date: new Date().toISOString().split('T')[0], // Imposta la data di oggi come default
+        location: "",
+        imageIpfsHash: ""
+    });
     
     const [allBatches, setAllBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
     const [filteredBatches, setFilteredBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
@@ -174,7 +176,6 @@ export default function AziendaPage() {
             setIsLoadingBatches(true);
             try {
                 const batchIds = await readContract({ contract, abi, method: "function getBatchesByContributor(address) view returns (uint256[])", params: [account.address] }) as bigint[];
-                
                 const batchNamePromises = batchIds.map(id => 
                     readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] }).then(info => ({
                         id: id.toString(),
@@ -213,9 +214,30 @@ export default function AziendaPage() {
     const handleLogout = () => {
         if (account) disconnect(account.wallet);
     };
+    
+    // Funzione per gestire i cambiamenti negli input del modale
+    const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({...prev, [e.target.name]: e.target.value}));
+    };
 
     const handleInitializeBatch = () => {
-        const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string,string,string,string,string)", params: [formData.batchName, formData.batchDescription, new Date().toLocaleDateString(), "Web App", "ipfs://..."] });
+        // Controlliamo che i campi obbligatori siano compilati
+        if (!formData.name || !formData.date || !formData.location) {
+            alert("Per favore, compila almeno Nome, Data e Luogo.");
+            return;
+        }
+        const transaction = prepareContractCall({ 
+            contract, 
+            abi, 
+            method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)", 
+            params: [
+                formData.name, 
+                formData.description, 
+                formData.date, 
+                formData.location, 
+                formData.imageIpfsHash || "N/A" // Usa N/A se l'hash è vuoto
+            ] 
+        });
         sendTransaction(transaction, { 
             onSuccess: () => { 
                 alert('✅ Iscrizione creata! La lista si aggiornerà a breve.');
@@ -261,15 +283,22 @@ export default function AziendaPage() {
                 {renderDashboardContent()}
             </main>
 
+            {/* MODIFICA QUI: Il modale ora ha tutti i campi richiesti */}
             {modal === 'init' && (
                 <div className="modal-overlay" onClick={() => setModal(null)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header"><h2>Nuova Iscrizione</h2></div>
                         <div className="modal-body">
-                            <div className="form-group"><label>Nome Iscrizione</label><input type="text" name="batchName" value={formData.batchName} onChange={(e) => setFormData({...formData, batchName: e.target.value})} className="form-input" /></div>
-                            <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="batchDescription" value={formData.batchDescription} onChange={(e) => setFormData({...formData, batchDescription: e.target.value})} className="form-input" /></div>
+                            <div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" /></div>
+                            <div className="form-group"><label>Descrizione</label><input type="text" name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" /></div>
+                            <div className="form-group"><label>Data *</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" /></div>
+                            <div className="form-group"><label>Luogo *</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" /></div>
+                            <div className="form-group"><label>Hash Immagine (IPFS)</label><input type="text" name="imageIpfsHash" value={formData.imageIpfsHash} onChange={handleModalInputChange} className="form-input" placeholder="es. ipfs://QmW..."/></div>
                         </div>
-                        <div className="modal-footer"><button onClick={handleInitializeBatch} disabled={isPending} className="web3-button">{isPending ? "In corso..." : "Conferma"}</button></div>
+                        <div className="modal-footer">
+                            <button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button>
+                            <button onClick={handleInitializeBatch} disabled={isPending} className="web3-button">{isPending ? "In corso..." : "Conferma"}</button>
+                        </div>
                     </div>
                 </div>
             )}
