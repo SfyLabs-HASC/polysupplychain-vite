@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON FIX DEFINITIVO AGLI IMPORT E LAYOUT GRAFICO COMPLETO
+// VERSIONE CON PULSANTE "LEGGI" NELLA COLONNA DESCRIZIONE AGGIORNATO
 
 import React, { useState, useEffect, useMemo } from 'react';
 // MODIFICA CORRETTA: Qui ci sono solo gli HOOKS e i COMPONENTI di React
@@ -48,7 +48,14 @@ const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) =>
             <tr>
                 <td>{localId}</td>
                 <td>{name || '/'}</td>
-                <td><button onClick={() => setShowDescription(true)} className="link-button">Leggi</button></td>
+                {/* --- MODIFICA QUI: Cambiato da 'link-button' a 'web3-button' --- */}
+                <td>
+                    {description ? (
+                        <button onClick={() => setShowDescription(true)} className="web3-button">Leggi</button>
+                    ) : (
+                        <span>/</span>
+                    )}
+                </td>
                 <td>{date || '/'}</td>
                 <td>{location || '/'}</td>
                 <td>{stepCount !== undefined ? stepCount.toString() : '/'}</td>
