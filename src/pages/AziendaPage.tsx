@@ -1,9 +1,11 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON IL NUOVO LAYOUT GRAFICO APPLICATO CORRETTAMENTE
+// VERSIONE CON FIX DEFINITIVO AGLI IMPORT E LAYOUT GRAFICO CORRETTO
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, readContract, useDisconnect } from 'thirdweb/react';
-import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs } from 'thirdweb';
+// MODIFICA CORRETTA: Qui ci sono solo gli HOOKS e i COMPONENTI di React
+import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
+// MODIFICA CORRETTA: Qui ci sono le FUNZIONI CORE, incluso readContract
+import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
@@ -78,7 +80,6 @@ interface BatchMetadata {
 }
 
 const BatchTable = ({ batches }: { batches: (BatchMetadata & { localId: number })[] }) => {
-    // La logica di paginazione rimane qui
     const [itemsToShow, setItemsToShow] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
     const MAX_PER_PAGE = 30;
@@ -91,7 +92,6 @@ const BatchTable = ({ batches }: { batches: (BatchMetadata & { localId: number }
     const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE));
     const handlePageChange = (page: number) => { if (page < 1 || page > totalPages) return; setCurrentPage(page); setItemsToShow(10); };
 
-    // Reset della paginazione quando i dati filtrati cambiano
     useEffect(() => {
         setCurrentPage(1);
         setItemsToShow(10);
@@ -154,18 +154,15 @@ export default function AziendaPage() {
     const { disconnect } = useDisconnect();
     const { data: contributorData, isLoading: isStatusLoading } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
     
-    // Stato per la logica dei modali e delle azioni
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     const [modal, setModal] = useState<'init' | null>(null);
     const [formData, setFormData] = useState({ batchName: "", batchDescription: "" });
     
-    // Stato per i dati e filtri
     const [allBatches, setAllBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
     const [filteredBatches, setFilteredBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
     const [isLoadingBatches, setIsLoadingBatches] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Fetch on-chain dei dati
     useEffect(() => {
         if (!account?.address) return;
 
@@ -174,12 +171,11 @@ export default function AziendaPage() {
             try {
                 const batchIds = await readContract({ contract, abi, method: "function getBatchesByContributor(address) view returns (uint256[])", params: [account.address] }) as bigint[];
                 
-                // Per il filtro, dobbiamo recuperare il nome di ogni batch
                 const batchNamePromises = batchIds.map(id => 
                     readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] }).then(info => ({
                         id: id.toString(),
                         batchId: id,
-                        name: info[3] // L'indice 3 è il nome del batch
+                        name: info[3] 
                     }))
                 );
                 
@@ -198,7 +194,6 @@ export default function AziendaPage() {
         fetchAllBatches();
     }, [account?.address]);
     
-    // Logica di filtraggio
     useEffect(() => {
         if (!searchTerm) {
             setFilteredBatches(allBatches);
@@ -226,7 +221,6 @@ export default function AziendaPage() {
         });
     };
 
-    // Layout per utente non connesso
     if (!account) {
         return (
             <div className='login-container'>
@@ -237,7 +231,6 @@ export default function AziendaPage() {
         );
     }
     
-    // Layout per utente connesso
     const renderDashboardContent = () => {
         if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>;
 
