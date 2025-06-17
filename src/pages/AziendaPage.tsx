@@ -1,15 +1,21 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE E COMPLETA - 17 GIUGNO 2025
+// VERSIONE FINALE E COMPLETA CON CONNESSIONE A FIREBASE E BLOCKCHAIN
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
 import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
-import { supplyChainABI as abi } from '../abi/contractABI';
-import '../App.css'; // Percorso corretto per il file CSS
 
-// --- Configurazione Centralizzata ---
+// Importa l'ABI dal percorso corretto (salendo di una cartella)
+import { supplyChainABI as abi } from '../abi/contractABI';
+// Importa la configurazione di Firebase dal percorso corretto
+import { db } from '../firebaseConfig';
+import { collection, query, where, getDocs } from "firebase/firestore";
+// Importa il CSS dal percorso corretto
+import '../App.css'; 
+
+// --- Configurazione Centralizzata Thirdweb ---
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
 const contract = getContract({ 
   client, 
@@ -24,7 +30,6 @@ const contract = getContract({
 // --- Componente: Form di Registrazione (se l'utente non è attivo) ---
 const RegistrationForm = () => {
     // Il codice completo del tuo form di registrazione andrebbe qui.
-    // Per ora, metto un placeholder.
     return (
         <div className="card">
             <h3>Benvenuto su Easy Chain!</h3>
@@ -89,6 +94,7 @@ interface BatchMetadata {
   date: string;
   location: string;
   isClosed: boolean;
+  ownerAddress: string;
 }
 
 // --- Componente principale della Tabella con Filtri e Paginazione ---
@@ -103,45 +109,50 @@ const BatchTable = () => {
     const MAX_PER_PAGE = 30;
 
     useEffect(() => {
-        if (!account?.address) return;
+        if (!account?.address) {
+            setIsLoading(false);
+            return;
+        }
         
         const fetchBatchesFromFirebase = async () => {
             setIsLoading(true);
             setError(null);
             try {
-                // ==========================================================
-                // ** INSERISCI QUI LA TUA LOGICA DI FETCH DA FIREBASE **
-                // Esempio fittizio che implementa la logica del localId dinamico
-                console.log("Simulo fetch da Firebase per:", account.address);
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Logica di fetch reale da Firestore
+                const batchesRef = collection(db, "batches");
+                const q = query(batchesRef, where("ownerAddress", "==", account.address));
+                const querySnapshot = await getDocs(q);
 
-                const mockDataFromDb: Omit<BatchMetadata, 'id'>[] = Array.from({ length: 45 }, (_, i) => ({
-                    batchId: BigInt(i + 1),
-                    name: `Lotto di Prova ${i + 1}`,
-                    date: `2025-05-${1 + (i % 30)}`,
-                    location: i % 2 === 0 ? 'Magazzino A' : 'Laboratorio B',
-                    isClosed: i % 4 === 0,
-                }));
-
-                // FASE 1: Ordinare i dati per batchId DECRESCENTE (il più grande prima)
-                const sortedByBatchId = mockDataFromDb.sort((a, b) => {
+                const dataFromDb = querySnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        name: data.name,
+                        date: data.date,
+                        location: data.location,
+                        isClosed: data.isClosed,
+                        ownerAddress: data.ownerAddress,
+                        batchId: BigInt(data.batchId) // Assicura che batchId sia un BigInt
+                    }
+                }) as Omit<BatchMetadata, 'id'> & { id: string }[];
+                
+                // Ordina per batchId DECRESCENTE per avere i più recenti prima
+                const sortedByBatchId = dataFromDb.sort((a, b) => {
                     if (a.batchId > b.batchId) return -1;
                     if (a.batchId < b.batchId) return 1;
                     return 0;
                 });
 
-                // FASE 2: Aggiungere il localId dinamico (indice + 1)
+                // Aggiungi il localId dinamico
                 const enrichedBatches = sortedByBatchId.map((batch, index) => ({
                     ...batch,
-                    id: `mock-${batch.batchId}`,
                     localId: index + 1
                 }));
 
                 setAllBatches(enrichedBatches);
-                // ==========================================================
 
             } catch (err) {
-                setError("Impossibile caricare i dati da Firebase.");
+                setError("Impossibile caricare i dati da Firebase. Controlla le regole di sicurezza e la connessione.");
                 console.error(err);
             } finally {
                 setIsLoading(false);
@@ -159,7 +170,6 @@ const BatchTable = () => {
                 (filters.status === 'all' || (filters.status === 'open' && !b.isClosed) || (filters.status === 'closed' && b.isClosed))
             )
             .sort((a, b) => {
-                // "desc" (Più Recenti) = ordine crescente per localId (1, 2, 3...)
                 return filters.sortOrder === 'desc' ? a.localId - b.localId : b.localId - a.localId;
             });
     }, [allBatches, filters]);
@@ -181,7 +191,7 @@ const BatchTable = () => {
         setCurrentPage(page);
     };
 
-    if (isLoading) return <p>Caricamento dati lotti da database...</p>;
+    if (isLoading) return <p>Caricamento dati lotti...</p>;
     if (error) return <p style={{ color: 'red' }}>{error}</p>;
 
     return (
@@ -200,18 +210,16 @@ const BatchTable = () => {
                     <option value="asc">Meno Recenti (...ID 1)</option>
                 </select>
             </div>
-
             <table className="company-table">
                 <thead><tr><th>ID</th><th>Nome</th><th>Descrizione</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr></thead>
                 <tbody>
                     {visibleBatches.length > 0 ? (
                         visibleBatches.map(batch => <BatchRow key={batch.id} metadata={batch} />)
                     ) : (
-                        <tr><td colSpan={8} style={{textAlign: 'center'}}>Nessun lotto trovato con i filtri attuali.</td></tr>
+                        <tr><td colSpan={8} style={{textAlign: 'center'}}>Nessun lotto trovato.</td></tr>
                     )}
                 </tbody>
             </table>
-
             <div className="pagination-controls">
                 {itemsToShow < itemsOnCurrentPage.length && (
                     <button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>
@@ -253,9 +261,22 @@ const ActiveUserDashboard = () => {
         } catch (e) { /* Ignora errori se l'evento non è quello che cerchiamo */ }
     };
     
-    const handleInitializeBatch = () => { /* Logica per inizializzare */ };
-    const handleAddStep = () => { /* Logica per aggiungere step */ };
-    const handleCloseBatch = () => { /* Logica per chiudere batch */ };
+    const handleInitializeBatch = () => {
+        const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)", params: [formData.batchName, formData.batchDescription, new Date().toLocaleDateString(), "Web App", "ipfs://..."] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
+
+    const handleAddStep = () => {
+        if (!manualBatchId) { alert("Per favore, inserisci un ID Batch a cui aggiungere lo step."); return; }
+        const transaction = prepareContractCall({ contract, abi, method: "function addStepToBatch(uint256 _batchId, string _eventName, string _description, string _date, string _location, string _attachmentsIpfsHash)", params: [BigInt(manualBatchId), formData.stepName, formData.stepDescription, new Date().toLocaleDateString(), formData.stepLocation, "ipfs://..."] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
+
+    const handleCloseBatch = () => {
+        if (!manualBatchId) { alert("Per favore, inserisci un ID Batch da finalizzare."); return; }
+        const transaction = prepareContractCall({ contract, abi, method: "function closeBatch(uint256 _batchId)", params: [BigInt(manualBatchId)] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
 
     return (
         <div className="card">
@@ -269,7 +290,7 @@ const ActiveUserDashboard = () => {
                     <input type="number" value={manualBatchId} onChange={(e) => setManualBatchId(e.target.value)} placeholder="ID Batch Manuale" className="form-input" style={{width: '120px', marginRight: '1rem'}}/>
                     <div className='button-group'>
                         <button className="web3-button" onClick={() => setModal('add')}>2. Aggiungi Step</button>
-                        <button className="web3-button" onClick={() => setModal('close')} style={{backgroundColor: '#ef4444'}}>3. Finalizza Batch</button>
+                        <button className="web3-button" onClick={handleCloseBatch} style={{backgroundColor: '#ef4444'}}>3. Finalizza Batch</button>
                     </div>
                 </div>
             </div>
@@ -279,12 +300,19 @@ const ActiveUserDashboard = () => {
 
             {/* MODALI PER LE AZIONI */}
             {modal === 'init' && <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <h2>Inizializza Nuovo Batch</h2><hr/>
+                <h2>Inizializza Nuovo Batch</h2><hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
                 <div className="form-group"><label>Nome Lotto</label><input type="text" name="batchName" value={formData.batchName} onChange={handleInputChange} className="form-input" /></div>
                 <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="batchDescription" value={formData.batchDescription} onChange={handleInputChange} className="form-input" /></div>
                 <button onClick={handleInitializeBatch} disabled={isPending} className="web3-button" style={{marginTop: '1.5rem'}}>{isPending ? "In corso..." : "Conferma"}</button>
             </div></div>}
-            {/* ... altri modali ... */}
+            {modal === 'add' && <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>Aggiungi Step al Batch #{manualBatchId}</h2><hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
+                <div className="form-group"><label>Nome Step</label><input type="text" name="stepName" value={formData.stepName} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="stepDescription" value={formData.stepDescription} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Luogo</label><input type="text" name="stepLocation" value={formData.stepLocation} onChange={handleInputChange} className="form-input" /></div>
+                <button onClick={handleAddStep} disabled={isPending || !manualBatchId} className="web3-button" style={{marginTop: '1.5rem'}}>{isPending ? "In corso..." : "Conferma"}</button>
+            </div></div>}
+            {/* Il modale per 'close' non è necessario perché non richiede input extra, viene chiamato direttamente */}
         </div>
     );
 };
@@ -325,7 +353,15 @@ export default function AziendaPage() {
             </aside>
             <main className="main-content">
                 <header className="header">
-                    <ConnectButton client={client} chain={polygon} accountAbstraction={{ chain: polygon, sponsorGas: true }} wallets={[inAppWallet()]} />
+                    <ConnectButton 
+                        client={client} 
+                        chain={polygon} 
+                        accountAbstraction={{ 
+                            chain: polygon, 
+                            sponsorGas: true,
+                        }} 
+                        wallets={[inAppWallet()]} 
+                    />
                 </header>
                 <h2 className="page-title">Portale Aziende - I Miei Lotti</h2>
                 {renderContent()}
