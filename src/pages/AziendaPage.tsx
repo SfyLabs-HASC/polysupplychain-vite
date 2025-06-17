@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE COMPLETA CON L'HOOK useReadContract E TUTTI I COMPONENTI
+// VERSIONE FINALE COMPLETA E CORRETTA (17 GIUGNO 2025)
 
 import React, { useState } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount, useReadContract } from "thirdweb/react";
@@ -17,8 +17,7 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-
-// --- Componente: Form di Registrazione (Completo e Invariato) ---
+// --- Componente: Form di Registrazione (Invariato) ---
 const RegistrationForm = () => {
   const account = useActiveAccount();
   const [formData, setFormData] = useState({
@@ -82,7 +81,7 @@ const RegistrationForm = () => {
 };
 
 
-// --- Componente: Dashboard per l'Utente Attivo (Completo e Invariato) ---
+// --- Componente: Dashboard per l'Utente Attivo (con le firme corrette) ---
 const ActiveUserDashboard = () => {
   const [modal, setModal] = useState<'init' | 'add' | 'close' | null>(null);
   const [activeBatchId, setActiveBatchId] = useState<bigint | null>(null);
@@ -124,7 +123,9 @@ const ActiveUserDashboard = () => {
           <p>Stai per creare un nuovo batch. I dati sono pre-compilati per questo test.</p>
           <TransactionButton
             transaction={() => prepareContractCall({
-              contract, abi, method: "initializeBatch",
+              contract, 
+              abi, 
+              method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)",
               params: [ "Lotto Prova Gasless", "Descrizione di prova", new Date().toLocaleDateString(), "Web App", "ipfs://..."]
             })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'init')}
@@ -140,7 +141,9 @@ const ActiveUserDashboard = () => {
           <p>Stai per aggiungere uno step al batch corrente.</p>
           <TransactionButton
             transaction={() => prepareContractCall({
-              contract, abi, method: "addStepToBatch",
+              contract, 
+              abi, 
+              method: "function addStepToBatch(uint256 _batchId, string _eventName, string _description, string _date, string _location, string _attachmentsIpfsHash)",
               params: [ activeBatchId, "Nuovo Step", "Dettagli...", new Date().toLocaleDateString(), "Luogo...", "ipfs://..."]
             })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'add')}
@@ -155,7 +158,12 @@ const ActiveUserDashboard = () => {
         <FormModal title={`Chiudi Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
           <p>Sei sicuro di voler chiudere questo batch? L'azione è irreversibile e consumerà 1 credito.</p>
           <TransactionButton
-            transaction={() => prepareContractCall({ contract, abi, method: "closeBatch", params: [activeBatchId] })}
+            transaction={() => prepareContractCall({ 
+              contract, 
+              abi, 
+              method: "function closeBatch(uint256 _batchId)", 
+              params: [activeBatchId] 
+            })}
             onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'close')}
             onError={(error) => alert(`❌ Errore: ${error.message}`)}
             className="web3-button" style={{backgroundColor: '#ef4444'}}
@@ -169,7 +177,7 @@ const ActiveUserDashboard = () => {
 };
 
 
-// --- Componente generico per la Modale (Completo e Invariato) ---
+// --- Componente generico per la Modale (Invariato) ---
 const FormModal = ({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) => {
     return (
         <div className="modal-overlay">
@@ -183,11 +191,10 @@ const FormModal = ({ title, children, onClose }: { title: string, children: Reac
     )
 }
 
-// --- Componente Principale della Pagina (Riscritto con l'hook useReadContract) ---
+// --- Componente Principale della Pagina (Usa l'hook useReadContract) ---
 export default function AziendaPage() {
   const account = useActiveAccount();
 
-  // 1. USIAMO L'HOOK useReadContract PER LEGGERE I DATI DAL CONTRATTO
   const { 
     data: contributorData, 
     isLoading: isStatusLoading,
@@ -195,30 +202,22 @@ export default function AziendaPage() {
   } = useReadContract({
     contract,
     method: "function getContributorInfo(address _contributorAddress) view returns (string, uint256, bool)",
-    params: account ? [account.address] : undefined, // Passa i parametri solo se l'account esiste
+    params: account ? [account.address] : undefined,
     queryOptions: {
-        enabled: !!account, // Esegui la chiamata solo se l'utente è connesso
+        enabled: !!account,
     }
   });
 
-  // 2. INTERPRETIAMO I DATI RICEVUTI DALL'HOOK
-  // 'contributorData' è un array: [name, credits, isActive]
   const isActive = contributorData ? contributorData[2] : false;
   const credits = contributorData ? contributorData[1].toString() : "N/A";
   
-  // Opzionale: logga l'errore se si verifica, per un debug più facile in futuro
   if (error) {
     console.error("Errore dall'hook useReadContract (potrebbe essere normale se l'utente non è registrato):", error);
   }
 
-  // 3. RENDERIZZIAMO L'INTERFACCIA IN BASE AGLI STATI FORNITI DALL'HOOK
   const renderContent = () => {
     if (!account) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Connettiti per iniziare.</p>;
     if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica dello stato dell'account...</p>;
-    
-    // Se il caricamento è finito e 'isActive' è true, mostra la dashboard.
-    // Altrimenti (se 'isActive' è false, che succede se i dati non ci sono o se lo stato è false),
-    // mostra il form di registrazione.
     return isActive ? <ActiveUserDashboard /> : <RegistrationForm />;
   };
 
