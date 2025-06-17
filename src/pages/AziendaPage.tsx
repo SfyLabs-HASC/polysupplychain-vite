@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON POPUP DI ISCRIZIONE COMPLETO E GESTIONE CAMPI VUOTI
+// VERSIONE CON UX AGGIORNATA: VALIDAZIONE, FORMATO DATA, TOOLTIP DESCRIZIONE, LIMITI CARATTERI E UPLOAD IMMAGINE
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
@@ -31,49 +31,43 @@ const RegistrationForm = () => {
 };
 
 const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) => {
-    const [showDescription, setShowDescription] = useState(false);
     const { data: batchInfo } = useReadContract({ contract, abi, method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", params: [batchId] });
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batchId] });
     
-    // MODIFICA QUI: Usiamo l'operatore || per mostrare '/' se il dato è vuoto o nullo
     const name = batchInfo?.[3];
     const description = batchInfo?.[4];
-    const date = batchInfo?.[5];
+    const dateRaw = batchInfo?.[5];
     const location = batchInfo?.[6];
     const isClosed = batchInfo?.[8];
 
+    // Funzione per formattare la data in formato italiano
+    const formatDate = (dateStr: string | undefined) => {
+        if (!dateStr || dateStr.split('-').length !== 3) return '/';
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}/${year}`;
+    };
+
     return (
-        <>
-            <tr>
-                <td>{localId}</td>
-                <td>{name || '/'}</td>
-                <td>
-                    <button onClick={() => setShowDescription(true)} className="web3-button">Leggi</button>
-                </td>
-                <td>{date || '/'}</td>
-                <td>{location || '/'}</td>
-                <td>{stepCount !== undefined ? stepCount.toString() : '/'}</td>
-                <td>
-                    {batchInfo ? (
-                        isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>
-                    ) : '...'}
-                </td>
-                <td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td>
-            </tr>
-            {showDescription && (
-                <div className="modal-overlay" onClick={() => setShowDescription(false)}>
-                    <div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div>
-                        <div className="modal-body"><p>{description || 'Nessuna descrizione fornita.'}</p></div>
-                        <div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div>
-                    </div>
-                </div>
-            )}
-        </>
+        <tr>
+            <td>{localId}</td>
+            {/* La descrizione ora è un tooltip sul nome */}
+            <td className="name-cell" title={description || 'Nessuna descrizione fornita'}>
+                {name || '/'}
+            </td>
+            <td>{formatDate(dateRaw)}</td>
+            <td>{location || '/'}</td>
+            <td>{stepCount !== undefined ? stepCount.toString() : '/'}</td>
+            <td>
+                {batchInfo ? (
+                    isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>
+                ) : '...'}
+            </td>
+            <td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td>
+        </tr>
     );
 };
 
-// Interfaccia per i metadati dei batch
+// Interfaccia per i metadati dei batch (per il filtro)
 interface BatchMetadata {
     id: string;
     batchId: bigint;
@@ -98,12 +92,13 @@ const BatchTable = ({ batches }: { batches: (BatchMetadata & { localId: number }
     return (
         <div className="table-container">
             <table className="company-table">
-                <thead><tr><th>ID</th><th>Nome</th><th>Descrizione</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr></thead>
+                {/* Rimuoviamo la colonna Descrizione dall'header */}
+                <thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr></thead>
                 <tbody>
                     {visibleBatches.length > 0 ? (
                         visibleBatches.map(batch => <BatchRow key={batch.id} batchId={batch.batchId} localId={batch.localId} />)
                     ) : (
-                        <tr><td colSpan={8} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>
+                        <tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>
                     )}
                 </tbody>
             </table>
@@ -155,14 +150,10 @@ export default function AziendaPage() {
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     const [modal, setModal] = useState<'init' | null>(null);
     
-    // MODIFICA QUI: Aggiunti i nuovi campi allo stato del form
-    const [formData, setFormData] = useState({ 
-        name: "", 
-        description: "",
-        date: new Date().toISOString().split('T')[0], // Imposta la data di oggi come default
-        location: "",
-        imageIpfsHash: ""
-    });
+    // Stato per il form di Nuova Iscrizione, con i limiti di caratteri
+    const [formData, setFormData] = useState({ name: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     
     const [allBatches, setAllBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
     const [filteredBatches, setFilteredBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
@@ -171,77 +162,63 @@ export default function AziendaPage() {
 
     useEffect(() => {
         if (!account?.address) return;
-
         const fetchAllBatches = async () => {
             setIsLoadingBatches(true);
             try {
                 const batchIds = await readContract({ contract, abi, method: "function getBatchesByContributor(address) view returns (uint256[])", params: [account.address] }) as bigint[];
                 const batchNamePromises = batchIds.map(id => 
                     readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] }).then(info => ({
-                        id: id.toString(),
-                        batchId: id,
-                        name: info[3] 
+                        id: id.toString(), batchId: id, name: info[3]
                     }))
                 );
-                
                 const results = await Promise.all(batchNamePromises);
                 const sortedByBatchId = results.sort((a, b) => a.batchId > b.batchId ? -1 : 1);
                 const finalData = sortedByBatchId.map((batch, index) => ({ ...batch, localId: index + 1 }));
-
                 setAllBatches(finalData);
-            } catch (error) {
-                console.error("Errore nel caricare i lotti dal contratto:", error);
-            } finally {
-                setIsLoadingBatches(false);
-            }
+            } catch (error) { console.error("Errore nel caricare i lotti dal contratto:", error); } 
+            finally { setIsLoadingBatches(false); }
         };
-
         fetchAllBatches();
     }, [account?.address]);
     
     useEffect(() => {
-        if (!searchTerm) {
-            setFilteredBatches(allBatches);
-        } else {
-            setFilteredBatches(
-                allBatches.filter(batch => 
-                    batch.name.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-            );
-        }
+        setFilteredBatches(
+            searchTerm ? allBatches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())) : allBatches
+        );
     }, [searchTerm, allBatches]);
 
-    const handleLogout = () => {
-        if (account) disconnect(account.wallet);
-    };
+    const handleLogout = () => { if (account) disconnect(account.wallet); };
     
-    // Funzione per gestire i cambiamenti negli input del modale
-    const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData(prev => ({...prev, [e.target.name]: e.target.value}));
+    const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value, maxLength } = e.target;
+        if (maxLength > 0 && value.length > maxLength) return;
+        setFormData(prev => ({...prev, [name]: value}));
     };
 
-    const handleInitializeBatch = () => {
-        // Controlliamo che i campi obbligatori siano compilati
-        if (!formData.name || !formData.date || !formData.location) {
-            alert("Per favore, compila almeno Nome, Data e Luogo.");
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedFile(file);
+            setPreviewUrl(URL.createObjectURL(file));
+        }
+    };
+
+    const handleInitializeBatch = async () => {
+        if (!formData.name.trim()) {
+            alert("Il campo Nome è obbligatorio.");
             return;
         }
+        let imageIpfsHash = "N/A";
+        // Qui andrà la logica di upload a IPFS...
         const transaction = prepareContractCall({ 
-            contract, 
-            abi, 
-            method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)", 
-            params: [
-                formData.name, 
-                formData.description, 
-                formData.date, 
-                formData.location, 
-                formData.imageIpfsHash || "N/A" // Usa N/A se l'hash è vuoto
-            ] 
+            contract, abi, 
+            method: "function initializeBatch(string,string,string,string,string)", 
+            params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] 
         });
         sendTransaction(transaction, { 
             onSuccess: () => { 
                 alert('✅ Iscrizione creata! La lista si aggiornerà a breve.');
-                setModal(null);
+                setModal(null); setSelectedFile(null); setPreviewUrl(null);
             },
             onError: (err) => alert(`❌ Errore: ${err.message}`) 
         });
@@ -259,10 +236,8 @@ export default function AziendaPage() {
     
     const renderDashboardContent = () => {
         if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>;
-
         const isActive = contributorData?.[2] ?? false;
         if (!isActive) return <RegistrationForm />;
-        
         return (
             <>
                 <DashboardHeader contributorInfo={contributorData!} onNewInscriptionClick={() => setModal('init')} />
@@ -283,17 +258,35 @@ export default function AziendaPage() {
                 {renderDashboardContent()}
             </main>
 
-            {/* MODIFICA QUI: Il modale ora ha tutti i campi richiesti */}
             {modal === 'init' && (
                 <div className="modal-overlay" onClick={() => setModal(null)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header"><h2>Nuova Iscrizione</h2></div>
                         <div className="modal-body">
-                            <div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" /></div>
-                            <div className="form-group"><label>Descrizione</label><input type="text" name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" /></div>
-                            <div className="form-group"><label>Data *</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" /></div>
-                            <div className="form-group"><label>Luogo *</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" /></div>
-                            <div className="form-group"><label>Hash Immagine (IPFS)</label><input type="text" name="imageIpfsHash" value={formData.imageIpfsHash} onChange={handleModalInputChange} className="form-input" placeholder="es. ipfs://QmW..."/></div>
+                            <div className="form-group">
+                                <label>Nome Iscrizione *</label>
+                                <input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} />
+                                <small className="char-counter">{formData.name.length} / 50</small>
+                            </div>
+                            <div className="form-group">
+                                <label>Descrizione</label>
+                                <textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea>
+                                <small className="char-counter">{formData.description.length} / 500</small>
+                            </div>
+                            <div className="form-group">
+                                <label>Luogo</label>
+                                <input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} />
+                                <small className="char-counter">{formData.location.length} / 100</small>
+                            </div>
+                             <div className="form-group">
+                                <label>Data</label>
+                                <input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" />
+                            </div>
+                             <div className="form-group">
+                                <label>Immagine</label>
+                                <input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>
+                                {previewUrl && <img src={previewUrl} alt="Anteprima" className="image-preview" />}
+                             </div>
                         </div>
                         <div className="modal-footer">
                             <button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button>
