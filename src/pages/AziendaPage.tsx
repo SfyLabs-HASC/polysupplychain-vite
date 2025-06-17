@@ -1,9 +1,11 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE CON NUOVA UX PRE/POST LOGIN E TUTTE LE MODIFICHE RICHIESTE
+// VERSIONE FINALE E COMPLETA CON CORREZIONE DEFINITIVA AGLI IMPORT
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, readContract, useDisconnect } from 'thirdweb/react';
-import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs } from 'thirdweb';
+// MODIFICA: 'readContract' è stato rimosso da questo import
+import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
+// MODIFICA: 'readContract' è stato aggiunto a questo import
+import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
@@ -46,9 +48,7 @@ const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) =>
             <tr>
                 <td>{localId}</td>
                 <td>{name || '/'}</td>
-                <td>
-                    <button onClick={() => setShowDescription(true)} className="link-button">Leggi</button>
-                </td>
+                <td><button onClick={() => setShowDescription(true)} className="link-button">Leggi</button></td>
                 <td>{date || '/'}</td>
                 <td>{location || '/'}</td>
                 <td>{stepCount !== undefined ? stepCount.toString() : '/'}</td>
@@ -167,11 +167,40 @@ const ActiveUserDashboard = ({ contributorInfo }: { contributorInfo: readonly [s
     const [formData, setFormData] = useState({ batchName: "", batchDescription: "", stepName: "", stepDescription: "", stepLocation: "" });
     const [manualBatchId, setManualBatchId] = useState('');
 
-    const handleInitializeBatch = () => { /* ... Logica transazione ... */ };
-    const handleAddStep = () => { /* ... Logica transazione ... */ };
-    const handleCloseBatch = () => { /* ... Logica transazione ... */ };
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => { /* ... */ };
-    const handleTransactionSuccess = (receipt: any) => { /* ... */ };
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleTransactionSuccess = (receipt: any) => {
+        setModal(null);
+        alert('✅ Transazione confermata!');
+        try {
+            const events = parseEventLogs({ logs: receipt.logs, abi, eventName: "BatchInitialized" });
+            if (events.length > 0) {
+                const newBatchId = events[0].args.batchId;
+                alert(`✅ Batch Inizializzato! ID recuperato: ${newBatchId}. Ora puoi usarlo per aggiungere step.`);
+                setManualBatchId(newBatchId.toString());
+            }
+        } catch (e) { /* Ignora errori se l'evento non è quello che cerchiamo */ }
+    };
+
+    const handleInitializeBatch = () => {
+        const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)", params: [formData.batchName, formData.batchDescription, new Date().toLocaleDateString(), "Web App", "ipfs://..."] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
+
+    const handleAddStep = () => {
+        if (!manualBatchId) { alert("Per favore, inserisci un ID Batch a cui aggiungere lo step."); return; }
+        const transaction = prepareContractCall({ contract, abi, method: "function addStepToBatch(uint256 _batchId, string _eventName, string _description, string _date, string _location, string _attachmentsIpfsHash)", params: [BigInt(manualBatchId), formData.stepName, formData.stepDescription, new Date().toLocaleDateString(), formData.stepLocation, "ipfs://..."] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
+
+    const handleCloseBatch = () => {
+        if (!manualBatchId) { alert("Per favore, inserisci un ID Batch da finalizzare."); return; }
+        const transaction = prepareContractCall({ contract, abi, method: "function closeBatch(uint256 _batchId)", params: [BigInt(manualBatchId)] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
 
     return (
         <div className="card">
@@ -179,13 +208,13 @@ const ActiveUserDashboard = ({ contributorInfo }: { contributorInfo: readonly [s
             <div className='actions-section'>
                 <h4>Azioni Rapide</h4>
                 <div className="action-item">
-                    <button className="web3-button" onClick={() => setModal('init')}>1. Inizializza Nuovo Batch</button>
+                    <button className="web3-button" onClick={() => setModal('init')}>1. Inizializza Nuova Iscrizione</button>
                 </div>
                 <div className="action-item-manual">
-                    <input type="number" value={manualBatchId} onChange={(e) => setManualBatchId(e.target.value)} placeholder="ID Batch Manuale" className="form-input" style={{width: '120px', marginRight: '1rem'}}/>
+                    <input type="number" value={manualBatchId} onChange={(e) => setManualBatchId(e.target.value)} placeholder="ID Iscrizione Manuale" className="form-input" style={{width: '120px', marginRight: '1rem'}}/>
                     <div className='button-group'>
                         <button className="web3-button" onClick={() => setModal('add')}>2. Aggiungi Step</button>
-                        <button className="web3-button" onClick={handleCloseBatch} style={{backgroundColor: '#ef4444'}}>3. Finalizza Batch</button>
+                        <button className="web3-button" onClick={handleCloseBatch} style={{backgroundColor: '#ef4444'}}>3. Finalizza Iscrizione</button>
                     </div>
                 </div>
             </div>
@@ -193,12 +222,24 @@ const ActiveUserDashboard = ({ contributorInfo }: { contributorInfo: readonly [s
             <hr style={{margin: '2rem 0', borderColor: '#27272a'}} />
             <BatchTable />
 
-            {/* MODALI (omessi per brevità, ma la logica è qui) */}
+            {/* MODALI PER LE AZIONI */}
+            {modal === 'init' && <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>Inizializza Nuova Iscrizione</h2><hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
+                <div className="form-group"><label>Nome Iscrizione</label><input type="text" name="batchName" value={formData.batchName} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="batchDescription" value={formData.batchDescription} onChange={handleInputChange} className="form-input" /></div>
+                <button onClick={handleInitializeBatch} disabled={isPending} className="web3-button" style={{marginTop: '1.5rem'}}>{isPending ? "In corso..." : "Conferma"}</button>
+            </div></div>}
+            {modal === 'add' && <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>Aggiungi Step a Iscrizione #{manualBatchId}</h2><hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
+                <div className="form-group"><label>Nome Step</label><input type="text" name="stepName" value={formData.stepName} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="stepDescription" value={formData.stepDescription} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Luogo</label><input type="text" name="stepLocation" value={formData.stepLocation} onChange={handleInputChange} className="form-input" /></div>
+                <button onClick={handleAddStep} disabled={isPending || !manualBatchId} className="web3-button" style={{marginTop: '1.5rem'}}>{isPending ? "In corso..." : "Conferma"}</button>
+            </div></div>}
         </div>
     );
 };
 
-// --- NUOVO COMPONENTE: Info Card e Logout ---
 const UserHeader = ({ contributorInfo }: { contributorInfo: readonly [string, bigint, boolean] }) => {
     const account = useActiveAccount();
     const { disconnect } = useDisconnect();
@@ -211,9 +252,6 @@ const UserHeader = ({ contributorInfo }: { contributorInfo: readonly [string, bi
         if (account) {
             disconnect(account.wallet);
         }
-        // Dopo la disconnessione, la pagina si ri-renderizzerà automaticamente
-        // mostrando la vista di login, quindi il reindirizzamento non è strettamente necessario
-        // ma se vuoi forzarlo verso la home del sito, usa: window.location.href = '/';
     };
 
     return (
@@ -234,7 +272,7 @@ const UserHeader = ({ contributorInfo }: { contributorInfo: readonly [string, bi
 
 
 // ==================================================================
-// COMPONENTE PRINCIPALE EXPORTATO CON LA NUOVA LOGICA DI LAYOUT
+// COMPONENTE PRINCIPALE EXPORTATO
 // ==================================================================
 export default function AziendaPage() {
     const account = useActiveAccount();
@@ -294,7 +332,6 @@ export default function AziendaPage() {
             <main className="main-content">
                 <header className="header">
                     <h2 className="page-title">Portale Aziende - Le mie Iscrizioni</h2>
-                    {/* La UserHeader card viene mostrata solo se abbiamo i dati del contributor */}
                     {contributorData && <UserHeader contributorInfo={contributorData} />}
                 </header>
                 {renderDashboardContent()}
