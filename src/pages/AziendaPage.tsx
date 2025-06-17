@@ -1,11 +1,9 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE CON FIX ALL'IMPORT DI readContract
+// VERSIONE FINALE CON FIX ALLA VISUALIZZAZIONE DEI DATI ON-CHAIN NELLA TABELLA
 
 import React, { useState, useEffect, useMemo } from 'react';
-// MODIFICA QUI: readContract è stato rimosso da questo import
-import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
-// MODIFICA QUI: readContract è stato aggiunto a questo import
-import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs, readContract } from 'thirdweb';
+import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, readContract } from 'thirdweb/react';
+import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
@@ -21,7 +19,6 @@ const contract = getContract({
 
 // ==================================================================
 // DEFINIZIONE DI TUTTI I COMPONENTI HELPER
-// (Il loro codice interno non cambia ed è incluso qui)
 // ==================================================================
 
 const RegistrationForm = () => {
@@ -33,21 +30,47 @@ const RegistrationForm = () => {
     );
 };
 
+// --- MODIFICA QUI: Il componente BatchRow ora legge i dati come un array ---
 const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
-    const { data: batchInfo } = useReadContract({ contract, abi, method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", params: [batchId] });
-    const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batchId] });
-    const description = batchInfo ? batchInfo.description : "";
+
+    // Questo hook restituisce i dati come un array
+    const { data: batchInfo } = useReadContract({ 
+        contract, 
+        abi, 
+        method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", 
+        params: [batchId] 
+    });
+    
+    const { data: stepCount } = useReadContract({ 
+        contract, 
+        abi, 
+        method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", 
+        params: [batchId] 
+    });
+
+    // Accediamo ai dati usando l'indice corretto dell'array di ritorno
+    // [0]=id, [1]=contributor, [2]=contributorName, [3]=name, [4]=description, [5]=date, [6]=location, [7]=ipfs, [8]=isClosed
+    const name = batchInfo?.[3];
+    const description = batchInfo?.[4];
+    const date = batchInfo?.[5];
+    const location = batchInfo?.[6];
+    const isClosed = batchInfo?.[8];
+
     return (
         <>
             <tr>
                 <td>{localId}</td>
-                <td>{batchInfo?.name ?? 'Caricamento...'}</td>
+                <td>{name ?? 'Caricamento...'}</td>
                 <td>{description ? (<button onClick={() => setShowDescription(true)} className="link-button">Leggi</button>) : (<span>-</span>)}</td>
-                <td>{batchInfo?.date ?? '...'}</td>
-                <td>{batchInfo?.location ?? '...'}</td>
+                <td>{date ?? '...'}</td>
+                <td>{location ?? '...'}</td>
                 <td>{stepCount !== undefined ? stepCount.toString() : '...'}</td>
-                <td>{batchInfo ? (batchInfo.isClosed ? <span className="status-closed">❌ Chiuso</span> : <span className="status-open">✅ Aperto</span>) : '...'}</td>
+                <td>
+                    {batchInfo ? (
+                        isClosed ? <span className="status-closed">❌ Chiuso</span> : <span className="status-open">✅ Aperto</span>
+                    ) : '...'}
+                </td>
                 <td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td>
             </tr>
             {showDescription && (
@@ -83,12 +106,7 @@ const BatchTable = () => {
             setIsLoading(true);
             setError(null);
             try {
-                const data = await readContract({
-                    contract,
-                    abi,
-                    method: "function getBatchesByContributor(address _contributor) view returns (uint256[])",
-                    params: [account.address]
-                }) as bigint[];
+                const data = await readContract({ contract, abi, method: "function getBatchesByContributor(address _contributor) view returns (uint256[])", params: [account.address] }) as bigint[];
                 const sortedIds = data.sort((a, b) => (a > b ? -1 : 1));
                 setSortedBatchIds(sortedIds);
             } catch (err: any) {
@@ -102,9 +120,7 @@ const BatchTable = () => {
     }, [account?.address]);
     
     const paginatedAndSortedBatches = useMemo(() => {
-        const finalOrder = sortOrder === 'desc' 
-            ? [...sortedBatchIds] 
-            : [...sortedBatchIds].reverse(); 
+        const finalOrder = sortOrder === 'desc' ? [...sortedBatchIds] : [...sortedBatchIds].reverse(); 
         return finalOrder;
     }, [sortedBatchIds, sortOrder]);
 
@@ -146,9 +162,7 @@ const BatchTable = () => {
                 </tbody>
             </table>
             <div className="pagination-controls">
-                {itemsToShow < itemsOnCurrentPage.length && (
-                    <button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>
-                )}
+                {itemsToShow < itemsOnCurrentPage.length && ( <button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button> )}
                 <div className="page-selector">
                     {totalPages > 1 && <>
                         <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button>
@@ -162,15 +176,90 @@ const BatchTable = () => {
 };
 
 const ActiveUserDashboard = () => {
-    // Il codice delle Azioni Rapide e dei Modali va qui
-    // Ho omesso questa parte per brevità, ma devi assicurarti che sia presente
+    const [modal, setModal] = useState<'init' | 'add' | 'close' | null>(null);
+    const [formData, setFormData] = useState({ batchName: "", batchDescription: "", stepName: "", stepDescription: "", stepLocation: "" });
+    const [manualBatchId, setManualBatchId] = useState('');
+    const { mutate: sendTransaction, isPending } = useSendTransaction();
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleTransactionSuccess = (receipt: any) => {
+        setModal(null);
+        alert('✅ Transazione confermata!');
+        try {
+            const events = parseEventLogs({ logs: receipt.logs, abi, eventName: "BatchInitialized" });
+            if (events.length > 0) {
+                const newBatchId = events[0].args.batchId;
+                alert(`✅ Batch Inizializzato! ID recuperato: ${newBatchId}. Ora puoi usarlo per aggiungere step.`);
+                setManualBatchId(newBatchId.toString());
+            }
+        } catch (e) { /* Ignora errori se l'evento non è quello che cerchiamo */ }
+    };
+    
+    const handleInitializeBatch = () => {
+        const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)", params: [formData.batchName, formData.batchDescription, new Date().toLocaleDateString(), "Web App", "ipfs://..."] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
+
+    const handleAddStep = () => {
+        if (!manualBatchId) { alert("Per favore, inserisci un ID Batch a cui aggiungere lo step."); return; }
+        const transaction = prepareContractCall({ contract, abi, method: "function addStepToBatch(uint256 _batchId, string _eventName, string _description, string _date, string _location, string _attachmentsIpfsHash)", params: [BigInt(manualBatchId), formData.stepName, formData.stepDescription, new Date().toLocaleDateString(), formData.stepLocation, "ipfs://..."] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
+
+    const handleCloseBatch = () => {
+        if (!manualBatchId) { alert("Per favore, inserisci un ID Batch da finalizzare."); return; }
+        const transaction = prepareContractCall({ contract, abi, method: "function closeBatch(uint256 _batchId)", params: [BigInt(manualBatchId)] });
+        sendTransaction(transaction, { onSuccess: handleTransactionSuccess, onError: (err) => alert(`❌ Errore: ${err.message}`) });
+    };
+
     return (
         <div className="card">
             <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
             <p>Benvenuto nella tua dashboard.</p>
-            {/* Sezione Azioni Rapide... */}
+            
+            <div className='actions-section'>
+                <h4>Azioni Rapide</h4>
+                <div className="action-item">
+                    <button className="web3-button" onClick={() => setModal('init')}>1. Inizializza Nuovo Batch</button>
+                </div>
+                <div className="action-item-manual">
+                    <input 
+                        type="number" 
+                        value={manualBatchId}
+                        onChange={(e) => setManualBatchId(e.target.value)}
+                        placeholder="ID Batch Manuale"
+                        className="form-input"
+                        style={{width: '120px', marginRight: '1rem'}}
+                    />
+                    <div className='button-group'>
+                        <button className="web3-button" onClick={() => setModal('add')}>2. Aggiungi Step</button>
+                        <button className="web3-button" onClick={handleCloseBatch} style={{backgroundColor: '#ef4444'}}>3. Finalizza Batch</button>
+                    </div>
+                </div>
+            </div>
+            
             <hr style={{margin: '2rem 0', borderColor: '#27272a'}} />
+
             <BatchTable />
+
+            {/* MODALI PER LE AZIONI */}
+            {modal === 'init' && <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>Inizializza Nuovo Batch</h2><hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
+                <div className="form-group"><label>Nome Lotto</label><input type="text" name="batchName" value={formData.batchName} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="batchDescription" value={formData.batchDescription} onChange={handleInputChange} className="form-input" /></div>
+                <button onClick={handleInitializeBatch} disabled={isPending} className="web3-button" style={{marginTop: '1.5rem'}}>{isPending ? "In corso..." : "Conferma"}</button>
+            </div></div>}
+            {modal === 'add' && <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>Aggiungi Step al Batch #{manualBatchId}</h2><hr style={{margin: '1rem 0', borderColor: '#27272a'}}/>
+                <div className="form-group"><label>Nome Step</label><input type="text" name="stepName" value={formData.stepName} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="stepDescription" value={formData.stepDescription} onChange={handleInputChange} className="form-input" /></div>
+                <div className="form-group" style={{marginTop: '1rem'}}><label>Luogo</label><input type="text" name="stepLocation" value={formData.stepLocation} onChange={handleInputChange} className="form-input" /></div>
+                <button onClick={handleAddStep} disabled={isPending || !manualBatchId} className="web3-button" style={{marginTop: '1.5rem'}}>{isPending ? "In corso..." : "Conferma"}</button>
+            </div></div>}
         </div>
     );
 };
@@ -195,7 +284,9 @@ export default function AziendaPage() {
     return (
         <div className="app-container">
             <aside className="sidebar">
-                {/* Il contenuto della sidebar va qui */}
+                <div className="user-info">
+                    {account && <p><strong>Wallet:</strong> {account.address}</p>}
+                </div>
             </aside>
             <main className="main-content">
                 <header className="header">
