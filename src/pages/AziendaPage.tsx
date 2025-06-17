@@ -1,9 +1,11 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE CON FIX ALLA VISUALIZZAZIONE DEI DATI ON-CHAIN NELLA TABELLA
+// VERSIONE FINALE CON FIX ALL'IMPORT DI readContract
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, readContract } from 'thirdweb/react';
-import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs } from 'thirdweb';
+// MODIFICA QUI: 'readContract' è stato rimosso da questa riga
+import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
+// MODIFICA QUI: 'readContract' è stato aggiunto a questa riga, da cui viene correttamente esportato
+import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
@@ -30,27 +32,11 @@ const RegistrationForm = () => {
     );
 };
 
-// --- MODIFICA QUI: Il componente BatchRow ora legge i dati come un array ---
 const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
-
-    // Questo hook restituisce i dati come un array
-    const { data: batchInfo } = useReadContract({ 
-        contract, 
-        abi, 
-        method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", 
-        params: [batchId] 
-    });
+    const { data: batchInfo } = useReadContract({ contract, abi, method: "function getBatchInfo(uint256 _batchId) view returns (uint256 id, address contributor, string contributorName, string name, string description, string date, string location, string imageIpfsHash, bool isClosed)", params: [batchId] });
+    const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batchId] });
     
-    const { data: stepCount } = useReadContract({ 
-        contract, 
-        abi, 
-        method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", 
-        params: [batchId] 
-    });
-
-    // Accediamo ai dati usando l'indice corretto dell'array di ritorno
-    // [0]=id, [1]=contributor, [2]=contributorName, [3]=name, [4]=description, [5]=date, [6]=location, [7]=ipfs, [8]=isClosed
     const name = batchInfo?.[3];
     const description = batchInfo?.[4];
     const date = batchInfo?.[5];
