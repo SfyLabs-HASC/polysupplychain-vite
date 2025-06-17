@@ -1,8 +1,8 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE COMPLETA, FINALE E VERIFICATA
+// VERSIONE FINALE COMPLETA CON useReadContract e useSendTransaction
 
 import React, { useState } from "react";
-import { ConnectButton, TransactionButton, useActiveAccount, useReadContract } from "thirdweb/react";
+import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from "thirdweb/react";
 import { createThirdwebClient, getContract, prepareContractCall, parseEventLogs } from "thirdweb";
 import { polygon } from "thirdweb/chains";
 import { inAppWallet } from "thirdweb/wallets";
@@ -17,7 +17,8 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-// --- Componente: Form di Registrazione ---
+
+// --- Componente: Form di Registrazione (Invariato) ---
 const RegistrationForm = () => {
   const account = useActiveAccount();
   const [formData, setFormData] = useState({
@@ -81,7 +82,7 @@ const RegistrationForm = () => {
 };
 
 
-// --- Componente: Dashboard per l'Utente Attivo ---
+// --- Componente: Dashboard per l'Utente Attivo (con useSendTransaction) ---
 const ActiveUserDashboard = () => {
   const [modal, setModal] = useState<'init' | 'add' | 'close' | null>(null);
   const [activeBatchId, setActiveBatchId] = useState<bigint | null>(null);
@@ -93,14 +94,16 @@ const ActiveUserDashboard = () => {
     stepLocation: "",
   });
 
+  const { mutate: sendTransaction, isPending } = useSendTransaction();
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleTransactionSuccess = (receipt: any, type: 'init' | 'add' | 'close') => {
-    console.log("Receipt ricevuto per il debug:", receipt);
-    setModal(null);
+    console.log("Receipt ricevuto con successo:", receipt);
+    setModal(null); 
     
     if (type === 'init') {
       try {
@@ -110,11 +113,9 @@ const ActiveUserDashboard = () => {
           setActiveBatchId(newBatchId);
           alert(`✅ Batch Inizializzato! Nuovo ID: ${newBatchId}`);
         } else {
-          alert("✅ Batch creato, ma l'evento non è stato trovato nella ricevuta. L'ID non può essere recuperato automaticamente.");
-          console.error("Nessun evento 'BatchInitialized' trovato nel receipt:", receipt.logs);
+          alert("✅ Batch creato, ma l'evento non è stato trovato nella ricevuta.");
         }
       } catch (e) {
-        console.error("Errore nel parsing degli eventi:", e);
         alert("✅ Batch creato, ma si è verificato un errore nel recuperare l'ID.");
       }
     } else if (type === 'add') {
@@ -124,7 +125,51 @@ const ActiveUserDashboard = () => {
       setActiveBatchId(null);
     }
   };
-  
+
+  const handleInitializeBatch = () => {
+    const transaction = prepareContractCall({
+      contract,
+      abi,
+      method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)",
+      params: [formData.batchName, formData.batchDescription, new Date().toLocaleDateString(), "Web App", "ipfs://..."]
+    });
+    
+    sendTransaction(transaction, {
+      onSuccess: (receipt) => handleTransactionSuccess(receipt, 'init'),
+      onError: (err) => alert(`❌ Errore: ${err.message}`)
+    });
+  };
+
+  const handleAddStep = () => {
+    if (!activeBatchId) return;
+    const transaction = prepareContractCall({
+      contract,
+      abi,
+      method: "function addStepToBatch(uint256 _batchId, string _eventName, string _description, string _date, string _location, string _attachmentsIpfsHash)",
+      params: [activeBatchId, formData.stepName, formData.stepDescription, new Date().toLocaleDateString(), formData.stepLocation, "ipfs://..."]
+    });
+
+    sendTransaction(transaction, {
+      onSuccess: (receipt) => handleTransactionSuccess(receipt, 'add'),
+      onError: (err) => alert(`❌ Errore: ${err.message}`)
+    });
+  };
+
+  const handleCloseBatch = () => {
+    if (!activeBatchId) return;
+    const transaction = prepareContractCall({
+      contract,
+      abi,
+      method: "function closeBatch(uint256 _batchId)",
+      params: [activeBatchId]
+    });
+
+    sendTransaction(transaction, {
+      onSuccess: (receipt) => handleTransactionSuccess(receipt, 'close'),
+      onError: (err) => alert(`❌ Errore: ${err.message}`)
+    });
+  };
+
   return (
     <div className="card">
       <h3 style={{color: '#34d399'}}>✅ ACCOUNT ATTIVATO</h3>
@@ -140,78 +185,31 @@ const ActiveUserDashboard = () => {
 
       {modal === 'init' && 
         <FormModal title="Inizializza Nuovo Batch" onClose={() => setModal(null)}>
-          <div className="form-group">
-            <label>Nome del Lotto/Prodotto</label>
-            <input type="text" name="batchName" value={formData.batchName} onChange={handleInputChange} className="form-input" />
-          </div>
-          <div className="form-group" style={{marginTop: '1rem'}}>
-            <label>Descrizione</label>
-            <input type="text" name="batchDescription" value={formData.batchDescription} onChange={handleInputChange} className="form-input" />
-          </div>
-          <TransactionButton
-            transaction={() => prepareContractCall({
-              contract, 
-              abi, 
-              method: "function initializeBatch(string _name, string _description, string _date, string _location, string _imageIpfsHash)",
-              params: [ formData.batchName, formData.batchDescription, new Date().toLocaleDateString(), "Web App", "ipfs://..."]
-            })}
-            onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'init')}
-            onError={(error) => alert(`❌ Errore: ${error.message}`)}
-            className="web3-button"
-            style={{marginTop: '1.5rem'}}
-          >
-            Conferma Inizializzazione
-          </TransactionButton>
+          <div className="form-group"><label>Nome del Lotto/Prodotto</label><input type="text" name="batchName" value={formData.batchName} onChange={handleInputChange} className="form-input" /></div>
+          <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="batchDescription" value={formData.batchDescription} onChange={handleInputChange} className="form-input" /></div>
+          <button onClick={handleInitializeBatch} disabled={isPending} className="web3-button" style={{marginTop: '1.5rem'}}>
+            {isPending ? "In corso..." : "Conferma Inizializzazione"}
+          </button>
         </FormModal>
       }
       
       {modal === 'add' && activeBatchId &&
         <FormModal title={`Aggiungi Step al Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
-          <div className="form-group">
-            <label>Nome dello Step (es. "Raccolta", "Spedizione")</label>
-            <input type="text" name="stepName" value={formData.stepName} onChange={handleInputChange} className="form-input" />
-          </div>
-          <div className="form-group" style={{marginTop: '1rem'}}>
-            <label>Descrizione</label>
-            <input type="text" name="stepDescription" value={formData.stepDescription} onChange={handleInputChange} className="form-input" />
-          </div>
-          <div className="form-group" style={{marginTop: '1rem'}}>
-            <label>Luogo</label>
-            <input type="text" name="stepLocation" value={formData.stepLocation} onChange={handleInputChange} className="form-input" />
-          </div>
-          <TransactionButton
-            transaction={() => prepareContractCall({
-              contract, 
-              abi, 
-              method: "function addStepToBatch(uint256 _batchId, string _eventName, string _description, string _date, string _location, string _attachmentsIpfsHash)",
-              params: [ activeBatchId, formData.stepName, formData.stepDescription, new Date().toLocaleDateString(), formData.stepLocation, "ipfs://..."]
-            })}
-            onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'add')}
-            onError={(error) => alert(`❌ Errore: ${error.message}`)}
-            className="web3-button"
-            style={{marginTop: '1.5rem'}}
-          >
-            Conferma Aggiunta Step
-          </TransactionButton>
+          <div className="form-group"><label>Nome dello Step</label><input type="text" name="stepName" value={formData.stepName} onChange={handleInputChange} className="form-input" /></div>
+          <div className="form-group" style={{marginTop: '1rem'}}><label>Descrizione</label><input type="text" name="stepDescription" value={formData.stepDescription} onChange={handleInputChange} className="form-input" /></div>
+          <div className="form-group" style={{marginTop: '1rem'}}><label>Luogo</label><input type="text" name="stepLocation" value={formData.stepLocation} onChange={handleInputChange} className="form-input" /></div>
+          <button onClick={handleAddStep} disabled={isPending} className="web3-button" style={{marginTop: '1.5rem'}}>
+            {isPending ? "In corso..." : "Conferma Aggiunta Step"}
+          </button>
         </FormModal>
       }
 
       {modal === 'close' && activeBatchId &&
         <FormModal title={`Chiudi Batch #${activeBatchId.toString()}`} onClose={() => setModal(null)}>
           <p>Sei sicuro di voler chiudere questo batch? L'azione è irreversibile e consumerà 1 credito.</p>
-          <TransactionButton
-            transaction={() => prepareContractCall({ 
-              contract, 
-              abi, 
-              method: "function closeBatch(uint256 _batchId)", 
-              params: [activeBatchId] 
-            })}
-            onTransactionConfirmed={(receipt) => handleTransactionSuccess(receipt, 'close')}
-            onError={(error) => alert(`❌ Errore: ${error.message}`)}
-            className="web3-button" style={{backgroundColor: '#ef4444'}}
-          >
-            Conferma Chiusura
-          </TransactionButton>
+          <button onClick={handleCloseBatch} disabled={isPending} className="web3-button" style={{backgroundColor: '#ef4444'}}>
+            {isPending ? "In corso..." : "Conferma Chiusura"}
+          </button>
         </FormModal>
       }
     </div>
@@ -219,7 +217,7 @@ const ActiveUserDashboard = () => {
 };
 
 
-// --- Componente generico per la Modale ---
+// --- Componente generico per la Modale (Invariato) ---
 const FormModal = ({ title, children, onClose }: { title: string, children: React.ReactNode, onClose: () => void }) => {
     return (
         <div className="modal-overlay">
@@ -233,7 +231,7 @@ const FormModal = ({ title, children, onClose }: { title: string, children: Reac
     )
 }
 
-// --- Componente Principale della Pagina ---
+// --- Componente Principale della Pagina (con hook 'useReadContract') ---
 export default function AziendaPage() {
   const account = useActiveAccount();
 
@@ -254,9 +252,7 @@ export default function AziendaPage() {
   const credits = contributorData ? contributorData[1].toString() : "N/A";
   
   if (error) {
-    // Questo errore è normale se l'utente non è registrato e la chiamata fallisce.
-    // Possiamo loggarlo per debug ma non è un errore critico per l'utente.
-    console.error("Debug - Errore dall'hook useReadContract:", error);
+    console.error("Debug - Errore dall'hook useReadContract (normale se l'utente non è registrato):", error);
   }
 
   const renderContent = () => {
