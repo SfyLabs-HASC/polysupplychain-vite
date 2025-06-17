@@ -1,35 +1,37 @@
 // FILE: api/auth.ts
-// VERSIONE CON LOGGING E CONTROLLI DI ERRORE MIGLIORATI
+// VERSIONE FINALE, PIÙ ROBUSTA E RESILIENTE AGLI ERRORI DI CONFIGURAZIONE
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { initializeApp, cert, getApps, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { utils } from 'ethers';
 
-// --- Inizializzazione di Firebase Admin SDK ---
-let serviceAccount: any;
+// Funzione helper per inizializzare Firebase Admin in modo sicuro
+function initializeFirebaseAdmin(): App {
+  // Se l'app è già inizializzata, restituiscila
+  if (getApps().length > 0) {
+    return getApps()[0];
+  }
 
-try {
-  // Controlla se la variabile d'ambiente segreta esiste.
+  // Controlla se la variabile d'ambiente segreta esiste
   if (!process.env.FIREBASE_ADMIN_SDK_JSON) {
     throw new Error("La variabile d'ambiente FIREBASE_ADMIN_SDK_JSON non è impostata su Vercel.");
   }
-  // Tenta di fare il parse del JSON. Se fallisce, il JSON è malformato.
-  serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SDK_JSON);
-} catch (error: any) {
-  console.error("ERRORE CRITICO: Impossibile fare il parse della Service Account Key.", error.message);
-  // Se la configurazione è sbagliata, la funzione non può MAI funzionare.
-  // Usciamo subito per non causare ulteriori problemi.
-  throw new Error("La Service Account Key in FIREBASE_ADMIN_SDK_JSON è malformata o mancante.");
+
+  try {
+    // Tenta di fare il parse del JSON.
+    const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SDK_JSON);
+    
+    // Inizializza l'app di Firebase Admin
+    return initializeApp({
+      credential: cert(serviceAccount),
+    });
+  } catch (error: any) {
+    console.error("ERRORE CRITICO: Impossibile fare il parse della Service Account Key. Controlla che il JSON incollato in Vercel sia valido.", error.message);
+    throw new Error("La Service Account Key in FIREBASE_ADMIN_SDK_JSON è malformata o mancante.");
+  }
 }
 
-
-// Inizializza l'app di Firebase Admin solo se non è già stata inizializzata.
-if (!getApps().length) {
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
-}
 
 // --- Funzione Principale (Handler) ---
 export default async function handler(
@@ -41,6 +43,10 @@ export default async function handler(
   }
 
   try {
+    // Inizializziamo Firebase Admin all'interno della richiesta.
+    // Se fallisce, il try/catch catturerà l'errore e darà una risposta JSON.
+    initializeFirebaseAdmin(); 
+    
     const { address, signature } = request.body;
 
     if (!address || !signature) {
@@ -54,11 +60,13 @@ export default async function handler(
       return response.status(401).send({ error: 'Firma non valida o non corrispondente.' });
     }
 
+    // Usiamo getAuth() solo dopo l'inizializzazione sicura
     const customToken = await getAuth().createCustomToken(address);
     return response.status(200).send({ token: customToken });
 
   } catch (error: any) {
-    console.error("Errore durante la generazione del token:", error.message);
-    return response.status(500).send({ error: 'Errore interno del server durante l_autenticazione.' });
+    // Questo catch ora catturerà anche gli errori di inizializzazione
+    console.error("Errore nella funzione /api/auth:", error.message);
+    return response.status(500).send({ error: `Errore interno del server: ${error.message}` });
   }
 }
