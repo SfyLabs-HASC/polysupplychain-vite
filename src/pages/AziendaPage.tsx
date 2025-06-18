@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE COMPLETA CON UPLOAD SU IPFS/FILEBASE E TUTTE LE MODIFICHE RICHIESTE
+// VERSIONE CON CODICE DI DEBUG PER VERIFICARE LA VARIABILE D'AMBIENTE DEL BUCKET
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -11,7 +11,6 @@ import '../App.css';
 
 // --- Importazioni Aggiuntive ---
 import TransactionStatusModal from '../components/TransactionStatusModal';
-// Importiamo il client S3 per comunicare con Filebase
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // --- Configurazione e Componenti Helper ---
@@ -23,10 +22,9 @@ const contract = getContract({
 });
 
 // --- Configurazione Client S3 per Filebase ---
-// Le credenziali vengono lette in modo sicuro dalle variabili d'ambiente
 const s3Client = new S3Client({
     endpoint: "https://s3.filebase.com",
-    region: "us-east-1", // Obbligatorio, anche se Filebase lo ignora
+    region: "us-east-1",
     credentials: {
         accessKeyId: process.env.REACT_APP_FILEBASE_ACCESS_KEY!,
         secretAccessKey: process.env.REACT_APP_FILEBASE_SECRET_KEY!,
@@ -53,7 +51,13 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
     const companyName = contributorInfo[0] || 'Azienda';
     const credits = contributorInfo[1].toString();
     return (
-        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
+            
+            {/* --- CODICE DI DEBUG TEMPORANEO --- */}
+            <div style={{ border: '2px solid red', padding: '10px', margin: '10px', backgroundColor: 'yellow', color: 'black' }}>
+                DEBUG BUCKET NAME: [{process.env.REACT_APP_FILEBASE_BUCKET_NAME}]
+            </div>
+
             <div>
                 <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, {companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -95,8 +99,7 @@ export default function AziendaPage() {
     const [locationFilter, setLocationFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const today = new Date().toISOString().split('T')[0];
-
-    // Stato per gestire i vari step del caricamento
+    
     const [loadingMessage, setLoadingMessage] = useState('');
 
     const fetchAllBatches = async () => {
