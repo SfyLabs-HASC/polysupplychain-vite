@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CORRETTA PER PROGETTO VITE (USA import.meta.env.VITE_...)
+// VERSIONE FINALE CON FIX PER "e.getReader is not a function"
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -19,8 +19,6 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-// --- [MODIFICATO] Configurazione Client S3 per VITE ---
-// Leggiamo le variabili con il prefisso VITE_ e da import.meta.env
 const s3Client = new S3Client({
     endpoint: "https://s3.filebase.com",
     region: "us-east-1",
@@ -51,12 +49,6 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
     const credits = contributorInfo[1].toString();
     return (
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
-            
-            {/* --- [MODIFICATO] CODICE DI DEBUG PER VITE --- */}
-            <div style={{ border: '2px solid red', padding: '10px', margin: '10px', backgroundColor: 'yellow', color: 'black' }}>
-                DEBUG BUCKET NAME: [{import.meta.env.VITE_FILEBASE_BUCKET_NAME}]
-            </div>
-
             <div>
                 <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, {companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
@@ -69,9 +61,6 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
     );
 };
 
-// ==================================================================
-// COMPONENTE PRINCIPALE EXPORTATO
-// ==================================================================
 export default function AziendaPage() {
     const account = useActiveAccount();
     const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
@@ -153,10 +142,13 @@ export default function AziendaPage() {
                 const companyName = contributorData?.[0] || 'AziendaGenerica';
                 const objectKey = `${companyName}/${Date.now()}_${selectedFile.name}`;
 
+                // --- [MODIFICA FINALE] Convertiamo il file in ArrayBuffer prima dell'upload ---
+                const fileBuffer = await selectedFile.arrayBuffer();
+
                 const command = new PutObjectCommand({
                     Bucket: FILEBASE_BUCKET_NAME,
                     Key: objectKey,
-                    Body: selectedFile,
+                    Body: fileBuffer, // Usiamo il buffer invece del file diretto
                     ContentType: selectedFile.type,
                 });
 
@@ -224,6 +216,7 @@ export default function AziendaPage() {
                 <div className="wallet-button-container"><ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div>
             </header>
             <main className="main-content-full">
+                {/* Rimuoviamo il box di debug ora che il problema è stato identificato e risolto */}
                 {renderDashboardContent()}
             </main>
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div>
