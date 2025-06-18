@@ -1,8 +1,8 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON POPUP DEL CONNECTBUTTON PERSONALIZZATO
+// VERSIONE CON SEZIONE FILTRI AVANZATA
 
 import React, { useState, useEffect } from 'react';
-import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
+import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
 import { createThirdwebClient, getContract, prepareContractCall, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
@@ -21,18 +21,31 @@ const contract = getContract({
 });
 
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
-const BatchRow = ({ batchId, localId }: { batchId: bigint; localId: number }) => {
+
+// BatchRow ora riceve tutti i dati come prop, non deve più fare fetch
+const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
-    const { data: batchInfo } = useReadContract({ contract, abi, method: "function getBatchInfo(uint256 _batchId) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [batchId] });
-    const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batchId] });
-    const name = batchInfo?.[3], description = batchInfo?.[4], dateRaw = batchInfo?.[5], location = batchInfo?.[6], isClosed = batchInfo?.[8];
+    const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
+    
     const formatDate = (dateStr: string | undefined) => !dateStr || dateStr.split('-').length !== 3 ? '/' : dateStr.split('-').reverse().join('/');
-    return (<><tr><td>{localId}</td><td><span className="clickable-name" onClick={() => setShowDescription(true)}>{name || '/'}</span></td><td>{formatDate(dateRaw)}</td><td>{location || '/'}</td><td>{stepCount !== undefined ? stepCount.toString() : '/'}</td><td>{batchInfo ? (isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>) : '...'}</td><td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td></tr>{showDescription && (<div className="modal-overlay" onClick={() => setShowDescription(false)}><div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div><div className="modal-body"><p>{description || 'Nessuna descrizione fornita.'}</p></div><div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div></div></div>)}</>);
+
+    return (<><tr><td>{localId}</td><td><span className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || '/'}</span></td><td>{formatDate(batch.date)}</td><td>{batch.location || '/'}</td><td>{stepCount !== undefined ? stepCount.toString() : '/'}</td><td>{batch.isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>}</td><td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td></tr>{showDescription && (<div className="modal-overlay" onClick={() => setShowDescription(false)}><div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div><div className="modal-body"><p>{batch.description || 'Nessuna descrizione fornita.'}</p></div><div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div></div></div>)}</>);
 };
-interface BatchMetadata { id: string; batchId: bigint; name: string; }
-const BatchTable = ({ batches }: { batches: (BatchMetadata & { localId: number })[] }) => {
+
+// MODIFICA: Interfaccia per i dati dei lotti aggiornata
+interface BatchData { 
+  id: string; 
+  batchId: bigint; 
+  name: string;
+  description: string;
+  date: string;
+  location: string;
+  isClosed: boolean;
+}
+
+const BatchTable = ({ batches }: { batches: BatchData[] }) => {
     const [currentPage, setCurrentPage] = useState(1); const [itemsToShow, setItemsToShow] = useState(10); const MAX_PER_PAGE = 30; const totalPages = Math.max(1, Math.ceil(batches.length / MAX_PER_PAGE)); const startIndex = (currentPage - 1) * MAX_PER_PAGE; const itemsOnCurrentPage = batches.slice(startIndex, startIndex + MAX_PER_PAGE); const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow); useEffect(() => { setCurrentPage(1); setItemsToShow(10); }, [batches]); const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE)); const handlePageChange = (page: number) => { if (page < 1 || page > totalPages) return; setCurrentPage(page); setItemsToShow(10); };
-    return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map(batch => <BatchRow key={batch.id} batchId={batch.batchId} localId={batch.localId} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
+    return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
 };
 const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
     const companyName = contributorInfo[0] || 'Azienda'; const credits = contributorInfo[1].toString();
@@ -55,28 +68,74 @@ export default function AziendaPage() {
     
     const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
 
-    const [allBatches, setAllBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
-    const [filteredBatches, setFilteredBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
+    const [allBatches, setAllBatches] = useState<BatchData[]>([]);
+    const [filteredBatches, setFilteredBatches] = useState<BatchData[]>([]);
     const [isLoadingBatches, setIsLoadingBatches] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    
+    // MODIFICA: Stati per i nuovi filtri
+    const [nameFilter, setNameFilter] = useState('');
+    const [locationFilter, setLocationFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'open', 'closed'
+    const [dateSort, setDateSort] = useState('recent'); // 'recent', 'oldest'
+
     const today = new Date().toISOString().split('T')[0];
 
+    // MODIFICA: FetchAllBatches ora recupera tutti i dati necessari per i filtri
     const fetchAllBatches = async () => {
         if (!account?.address) return;
         setIsLoadingBatches(true);
         try {
             const batchIds = await readContract({ contract, abi, method: "function getBatchesByContributor(address) view returns (uint256[])", params: [account.address] }) as bigint[];
-            const batchNamePromises = batchIds.map(id => readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] }).then(info => ({id: id.toString(), batchId: id, name: info[3]})));
-            const results = await Promise.all(batchNamePromises);
-            const sortedByBatchId = results.sort((a, b) => a.batchId > b.batchId ? -1 : 1);
-            const finalData = sortedByBatchId.map((batch, index) => ({ ...batch, localId: index + 1 }));
-            setAllBatches(finalData);
-        } catch (error) { console.error("Errore nel caricare i lotti:", error); } 
+            const batchDataPromises = batchIds.map(id => 
+                readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] })
+                .then(info => ({
+                    id: id.toString(), 
+                    batchId: id, 
+                    name: info[3],
+                    description: info[4],
+                    date: info[5],
+                    location: info[6],
+                    isClosed: info[8],
+                }))
+            );
+            const results = await Promise.all(batchDataPromises);
+            setAllBatches(results);
+        } catch (error) { 
+            console.error("Errore nel caricare i lotti:", error); 
+            setAllBatches([]);
+        } 
         finally { setIsLoadingBatches(false); }
     };
 
     useEffect(() => { fetchAllBatches(); }, [account?.address]);
-    useEffect(() => { setFilteredBatches(searchTerm ? allBatches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())) : allBatches); }, [searchTerm, allBatches]);
+
+    // MODIFICA: useEffect per applicare tutti i filtri e l'ordinamento
+    useEffect(() => {
+        let tempBatches = [...allBatches];
+
+        // 1. Filtro per nome
+        if (nameFilter) {
+            tempBatches = tempBatches.filter(b => b.name.toLowerCase().includes(nameFilter.toLowerCase()));
+        }
+        // 2. Filtro per luogo
+        if (locationFilter) {
+            tempBatches = tempBatches.filter(b => b.location.toLowerCase().includes(locationFilter.toLowerCase()));
+        }
+        // 3. Filtro per stato
+        if (statusFilter !== 'all') {
+            const isOpen = statusFilter === 'open';
+            tempBatches = tempBatches.filter(b => !b.isClosed === isOpen);
+        }
+        // 4. Ordinamento per data
+        tempBatches.sort((a, b) => {
+            if (dateSort === 'recent') {
+                return b.date.localeCompare(a.date); // Discendente
+            }
+            return a.date.localeCompare(b.date); // Ascendente
+        });
+        
+        setFilteredBatches(tempBatches);
+    }, [nameFilter, locationFilter, statusFilter, dateSort, allBatches]);
     
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
@@ -89,7 +148,6 @@ export default function AziendaPage() {
             if (selectedFile) { /* ...logica upload... */ }
             setIsUploading(false);
             const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string,string,string,string,string)", params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] });
-            
             sendTransaction(transaction, { 
                 onSuccess: () => { 
                     setTxResult({ status: 'success', message: 'Iscrizione creata con successo!' });
@@ -97,9 +155,7 @@ export default function AziendaPage() {
                     refetchContributorInfo();
                 },
                 onError: (err) => {
-                    const readableError = err.message.toLowerCase().includes("insufficient funds") 
-                        ? "Crediti Insufficienti, Ricarica" 
-                        : "Errore nella transazione.";
+                    const readableError = err.message.toLowerCase().includes("insufficient funds") ? "Crediti Insufficienti, Ricarica" : "Errore nella transazione.";
                     setTxResult({ status: 'error', message: readableError });
                 } 
             });
@@ -110,20 +166,54 @@ export default function AziendaPage() {
     };
     
     if (!account) { return <div className='login-container'><ConnectButton client={client} chain={polygon} accountAbstraction={{ chain: polygon, sponsorGas: true }} wallets={[inAppWallet()]} connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }} /></div>; }
-    const renderDashboardContent = () => { if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>; const isActive = contributorData?.[2] ?? false; if (!isActive) return <RegistrationForm />; return (<> <DashboardHeader contributorInfo={contributorData!} onNewInscriptionClick={() => setModal('init')} /> <div className="search-bar-container"><input type="text" placeholder="Filtra iscrizioni per nome..." className="form-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div> {isLoadingBatches ? <p>Caricamento iscrizioni...</p> : <BatchTable batches={filteredBatches} />} </>); };
+    
+    const renderDashboardContent = () => { 
+        if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>; 
+        const isActive = contributorData?.[2] ?? false; 
+        if (!isActive) return <RegistrationForm />; 
+        return (
+            <> 
+                <DashboardHeader contributorInfo={contributorData!} onNewInscriptionClick={() => setModal('init')} /> 
+                
+                {/* MODIFICA: Nuova sezione filtri */}
+                <div className="filters-container">
+                    <div className="filter-item">
+                        <label htmlFor="name-filter">Filtra per nome</label>
+                        <input id="name-filter" type="text" placeholder="Es. Lotto #123" className="form-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} />
+                    </div>
+                    <div className="filter-item">
+                        <label htmlFor="location-filter">Filtra per luogo</label>
+                        <input id="location-filter" type="text" placeholder="Es. Milano" className="form-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} />
+                    </div>
+                    <div className="filter-item">
+                        <label htmlFor="date-sort">Ordina per data</label>
+                        <select id="date-sort" className="form-input" value={dateSort} onChange={(e) => setDateSort(e.target.value)}>
+                            <option value="recent">Più recenti</option>
+                            <option value="oldest">Meno recenti</option>
+                        </select>
+                    </div>
+                    <div className="filter-item">
+                        <label htmlFor="status-filter">Filtra per stato</label>
+                        <select id="status-filter" className="form-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                            <option value="all">Tutti</option>
+                            <option value="open">Aperto</option>
+                            <option value="closed">Chiuso</option>
+                        </select>
+                    </div>
+                </div>
+
+                {isLoadingBatches ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento iscrizioni...</p> : <BatchTable batches={filteredBatches} />} 
+            </>
+        ); 
+    };
+    
     return (
         <div className="app-container-full">
             <header className="main-header-bar">
-                {/* MODIFICA: Personalizzato il popup del ConnectButton */}
                 <ConnectButton 
                     client={client} 
                     chain={polygon}
-                    detailsModal={{
-                        hideSend: true,
-                        hideReceive: true,
-                        hideBuy: true,
-                        hideTransactionHistory: true,
-                    }}
+                    detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}
                 />
             </header>
             <main className="main-content-full">{renderDashboardContent()}</main>
