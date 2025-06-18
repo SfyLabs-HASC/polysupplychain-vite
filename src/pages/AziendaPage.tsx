@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON FILTRI IN-TABLE E REDIRECT AL LOGOUT
+// VERSIONE CON TITOLO NELL'HEADER
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -21,24 +21,14 @@ const contract = getContract({
 });
 
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
-
 const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
     const formatDate = (dateStr: string | undefined) => !dateStr || dateStr.split('-').length !== 3 ? '/' : dateStr.split('-').reverse().join('/');
     return (<><tr><td>{localId}</td><td><span className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || '/'}</span></td><td>{formatDate(batch.date)}</td><td>{batch.location || '/'}</td><td>{stepCount !== undefined ? stepCount.toString() : '/'}</td><td>{batch.isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>}</td><td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Visualizza</button></td></tr>{showDescription && (<div className="modal-overlay" onClick={() => setShowDescription(false)}><div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div><div className="modal-body"><p>{batch.description || 'Nessuna descrizione fornita.'}</p></div><div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div></div></div>)}</>);
 };
-
 interface BatchData { id: string; batchId: bigint; name: string; description: string; date: string; location: string; isClosed: boolean; }
-
-// MODIFICA: BatchTable ora contiene la UI dei filtri
-const BatchTable = ({ 
-    batches, 
-    nameFilter, setNameFilter, 
-    locationFilter, setLocationFilter,
-    dateSort, setDateSort,
-    statusFilter, setStatusFilter 
-}: any) => {
+const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLocationFilter, dateSort, setDateSort, statusFilter, setStatusFilter }: any) => {
     const [currentPage, setCurrentPage] = useState(1); const [itemsToShow, setItemsToShow] = useState(10); const MAX_PER_PAGE = 30; const totalPages = Math.max(1, Math.ceil(batches.length / MAX_PER_PAGE)); const startIndex = (currentPage - 1) * MAX_PER_PAGE; const itemsOnCurrentPage = batches.slice(startIndex, startIndex + MAX_PER_PAGE); const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow); useEffect(() => { setCurrentPage(1); setItemsToShow(10); }, [batches]); const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE)); const handlePageChange = (page: number) => { if (page < 1 || page > totalPages) return; setCurrentPage(page); setItemsToShow(10); };
     return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr><tr className="filter-row"><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th><th><select className="filter-input" value={dateSort} onChange={(e) => setDateSort(e.target.value)}><option value="recent">Più recenti</option><option value="oldest">Meno recenti</option></select></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th><th></th><th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th><th></th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
 };
@@ -54,7 +44,6 @@ export default function AziendaPage() {
     const account = useActiveAccount();
     const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
     
-    // MODIFICA: Logica per reindirizzare alla homepage dopo il logout
     const prevAccount = useRef(account);
     useEffect(() => {
         if (prevAccount.current && !account) {
@@ -145,7 +134,13 @@ export default function AziendaPage() {
     return (
         <div className="app-container-full">
             <header className="main-header-bar">
-                <ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }} />
+                {/* MODIFICA: Aggiunto il titolo */}
+                <div className="header-title">EasyChain - Area Riservata</div>
+                <ConnectButton 
+                    client={client} 
+                    chain={polygon}
+                    detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}
+                />
             </header>
             <main className="main-content-full">{renderDashboardContent()}</main>
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div><div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>{selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}</div></div><div className="modal-footer"><button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button><button onClick={handleInitializeBatch} disabled={isPending || isUploading} className="web3-button">{isUploading ? "Caricamento..." : "Conferma"}</button></div></div></div> )}
