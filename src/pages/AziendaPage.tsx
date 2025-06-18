@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE MODIFICATA SECONDO LE RICHIESTE
+// VERSIONE MODIFICATA SECONDO LE NUOVE RICHIESTE
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -43,7 +43,8 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {/* Sezione Sinistra: Info Utente */}
             <div>
-                <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Ciao, "{companyName}"</h2>
+                {/* --- [MODIFICATO] Testo "Ciao" reso molto più grande --- */}
+                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, "{companyName}"</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item">
                         <span>Crediti Rimanenti: <strong>{credits}</strong></span>
@@ -158,11 +159,12 @@ export default function AziendaPage() {
     };
     
     return (
-        <div className="app-container-full">
-            {/* --- [MODIFICATO] Header principale --- */}
-            <header className="main-header-bar" style={{ width: '100%' }}>
-                {/* Il titolo è stato spostato nel main per un corretto allineamento */}
-                <div className="wallet-button-container" style={{ marginLeft: 'auto' }}>
+        // --- [MODIFICATO] Aggiunto padding per allineare tutto il contenuto della pagina ---
+        <div className="app-container-full" style={{ padding: '0 2rem' }}>
+            {/* --- [MODIFICATO] Header con titolo ripristinato e allineato --- */}
+            <header className="main-header-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div>
+                <div className="wallet-button-container">
                     <ConnectButton 
                         client={client} 
                         chain={polygon}
@@ -171,10 +173,7 @@ export default function AziendaPage() {
                 </div>
             </header>
             <main className="main-content-full">
-                {/* --- [AGGIUNTO] Titolo della pagina spostato qui --- */}
-                <h1 style={{ fontSize: '2.25rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
-                    EasyChain - Area Riservata
-                </h1>
+                {/* Il titolo H1 è stato rimosso da qui */}
                 {renderDashboardContent()}
             </main>
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div><div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>{selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}</div></div><div className="modal-footer"><button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button><button onClick={handleInitializeBatch} disabled={isPending || isUploading} className="web3-button">{isUploading ? "Caricamento..." : "Conferma"}</button></div></div></div> )}
