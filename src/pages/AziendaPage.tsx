@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE DEFINITIVA - LETTURA DIRETTA DELL'HEADER IPFS CID
+// VERSIONE FINALE CON ARCHITETTURA API ROUTE
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -10,7 +10,7 @@ import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css'; 
 
 import TransactionStatusModal from '../components/TransactionStatusModal';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+// La logica S3 è stata spostata nell'API Route, non è più necessaria qui
 
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
 const contract = getContract({ 
@@ -18,16 +18,6 @@ const contract = getContract({
   chain: polygon,
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
-
-const s3Client = new S3Client({
-    endpoint: "https://s3.filebase.com",
-    region: "us-east-1",
-    credentials: {
-        accessKeyId: import.meta.env.VITE_FILEBASE_ACCESS_KEY!,
-        secretAccessKey: import.meta.env.VITE_FILEBASE_SECRET_KEY!,
-    },
-});
-const FILEBASE_BUCKET_NAME = import.meta.env.VITE_FILEBASE_BUCKET_NAME!;
 
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 
@@ -115,6 +105,7 @@ export default function AziendaPage() {
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
     
+    // --- [MODIFICATO] handleInitializeBatch ora usa l'API Route ---
     const handleInitializeBatch = async () => {
         if (!formData.name.trim()) {
             setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' });
@@ -124,48 +115,46 @@ export default function AziendaPage() {
         let imageIpfsHash = "N/A";
 
         if (selectedFile) {
+            // Validazione file (rimane sul client per una risposta immediata)
             const MAX_SIZE_MB = 5;
             const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
             const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
-
             if (selectedFile.size > MAX_SIZE_BYTES) {
                 setTxResult({ status: 'error', message: `Il file è troppo grande. Limite massimo: ${MAX_SIZE_MB} MB.` });
                 return;
             }
             if (!ALLOWED_FORMATS.includes(selectedFile.type)) {
-                setTxResult({ status: 'error', message: 'Formato immagine non supportato. Ammessi: PNG, JPG, JPEG, WEBP.' });
+                setTxResult({ status: 'error', message: 'Formato immagine non supportato.' });
                 return;
             }
 
             setLoadingMessage('Caricamento Immagine, attendi...');
+            
             try {
-                const companyName = contributorData?.[0] || 'AziendaGenerica';
-                const objectKey = `${companyName}/${Date.now()}_${selectedFile.name}`;
+                const body = new FormData();
+                body.append('file', selectedFile);
+                body.append('companyName', contributorData?.[0] || 'AziendaGenerica');
 
-                const fileBuffer = await selectedFile.arrayBuffer();
-
-                const command = new PutObjectCommand({
-                    Bucket: FILEBASE_BUCKET_NAME,
-                    Key: objectKey,
-                    Body: fileBuffer,
-                    ContentType: selectedFile.type,
+                // Chiamiamo la nostra API Route invece di S3 direttamente
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: body,
                 });
 
-                const result = await s3Client.send(command);
-                
-                // --- [MODIFICA DEFINITIVA] Leggiamo il CID direttamente dagli header grezzi ---
-                // La libreria AWS a volte non popola `result.Metadata`. Leggere da `$metadata.httpHeaders` è più affidabile.
-                const cid = result.$metadata.httpHeaders?.['x-amz-meta-cid'] || result.ETag?.replace(/"/g, "");
-                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.details || 'Errore dal server di upload.');
+                }
+
+                const { cid } = await response.json();
                 if (!cid) {
-                    console.error("Impossibile ottenere un identificativo del file da Filebase. Risposta:", result);
-                    throw new Error("Impossibile ottenere un identificativo del file da Filebase.");
+                    throw new Error("CID non ricevuto dalla nostra API.");
                 }
                 imageIpfsHash = cid;
-                
-            } catch (error) {
-                console.error("Errore durante l'upload su Filebase:", error);
-                setTxResult({ status: 'error', message: "Errore durante il caricamento dell'immagine." });
+
+            } catch (error: any) {
+                console.error("Errore durante la chiamata all'API di upload:", error);
+                setTxResult({ status: 'error', message: `Errore caricamento: ${error.message}` });
                 setLoadingMessage('');
                 return;
             }
