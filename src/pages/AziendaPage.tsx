@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON TITOLO SPOSTATO E INGRANDITO
+// VERSIONE CON TITOLO NELL'HEADER E FIX POPUP
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -134,7 +134,8 @@ export default function AziendaPage() {
     return (
         <div className="app-container-full">
             <header className="main-header-bar">
-                {/* MODIFICA: Il titolo è stato rimosso da qui */}
+                {/* MODIFICA: Titolo riposizionato qui */}
+                <div className="header-title">EasyChain - Area Riservata</div>
                 <ConnectButton 
                     client={client} 
                     chain={polygon}
@@ -142,8 +143,7 @@ export default function AziendaPage() {
                 />
             </header>
             <main className="main-content-full">
-                {/* MODIFICA: Aggiunto il titolo qui, come primo elemento del contenuto principale */}
-                <h2 className="page-main-title">EasyChain - Area Riservata</h2>
+                {/* MODIFICA: Titolo rimosso da qui */}
                 {renderDashboardContent()}
             </main>
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div><div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>{selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}</div></div><div className="modal-footer"><button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button><button onClick={handleInitializeBatch} disabled={isPending || isUploading} className="web3-button">{isUploading ? "Caricamento..." : "Conferma"}</button></div></div></div> )}
