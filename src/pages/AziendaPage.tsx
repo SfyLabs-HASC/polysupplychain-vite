@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON RIPRISTINO DEL CONNECTBUTTON DI DEFAULT DI THIRDWEB
+// VERSIONE CON POPUP DEL CONNECTBUTTON PERSONALIZZATO
 
 import React, { useState, useEffect } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
@@ -44,8 +44,6 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
 // ==================================================================
 export default function AziendaPage() {
     const account = useActiveAccount();
-    // useDisconnect non è più necessario per un pulsante custom, ma lo lasciamo per completezza
-    const { disconnect } = useDisconnect(); 
     const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
     
     const { mutate: sendTransaction, isPending } = useSendTransaction();
@@ -79,8 +77,6 @@ export default function AziendaPage() {
 
     useEffect(() => { fetchAllBatches(); }, [account?.address]);
     useEffect(() => { setFilteredBatches(searchTerm ? allBatches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())) : allBatches); }, [searchTerm, allBatches]);
-    
-    // MODIFICA: La funzione handleLogout custom non è più necessaria.
     
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
@@ -118,8 +114,17 @@ export default function AziendaPage() {
     return (
         <div className="app-container-full">
             <header className="main-header-bar">
-                {/* MODIFICA: Ripristinato il pulsante di default di Thirdweb */}
-                <ConnectButton client={client} chain={polygon} />
+                {/* MODIFICA: Personalizzato il popup del ConnectButton */}
+                <ConnectButton 
+                    client={client} 
+                    chain={polygon}
+                    detailsModal={{
+                        hideSend: true,
+                        hideReceive: true,
+                        hideBuy: true,
+                        hideTransactionHistory: true,
+                    }}
+                />
             </header>
             <main className="main-content-full">{renderDashboardContent()}</main>
 
