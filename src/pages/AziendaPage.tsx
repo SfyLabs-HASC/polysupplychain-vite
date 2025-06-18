@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON CODICE DI DEBUG PER VERIFICARE LA VARIABILE D'AMBIENTE DEL BUCKET
+// VERSIONE CORRETTA PER PROGETTO VITE (USA import.meta.env.VITE_...)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -9,11 +9,9 @@ import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css'; 
 
-// --- Importazioni Aggiuntive ---
 import TransactionStatusModal from '../components/TransactionStatusModal';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-// --- Configurazione e Componenti Helper ---
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
 const contract = getContract({ 
   client, 
@@ -21,16 +19,17 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-// --- Configurazione Client S3 per Filebase ---
+// --- [MODIFICATO] Configurazione Client S3 per VITE ---
+// Leggiamo le variabili con il prefisso VITE_ e da import.meta.env
 const s3Client = new S3Client({
     endpoint: "https://s3.filebase.com",
     region: "us-east-1",
     credentials: {
-        accessKeyId: process.env.REACT_APP_FILEBASE_ACCESS_KEY!,
-        secretAccessKey: process.env.REACT_APP_FILEBASE_SECRET_KEY!,
+        accessKeyId: import.meta.env.VITE_FILEBASE_ACCESS_KEY!,
+        secretAccessKey: import.meta.env.VITE_FILEBASE_SECRET_KEY!,
     },
 });
-const FILEBASE_BUCKET_NAME = process.env.REACT_APP_FILEBASE_BUCKET_NAME!;
+const FILEBASE_BUCKET_NAME = import.meta.env.VITE_FILEBASE_BUCKET_NAME!;
 
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 
@@ -53,9 +52,9 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
     return (
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
             
-            {/* --- CODICE DI DEBUG TEMPORANEO --- */}
+            {/* --- [MODIFICATO] CODICE DI DEBUG PER VITE --- */}
             <div style={{ border: '2px solid red', padding: '10px', margin: '10px', backgroundColor: 'yellow', color: 'black' }}>
-                DEBUG BUCKET NAME: [{process.env.REACT_APP_FILEBASE_BUCKET_NAME}]
+                DEBUG BUCKET NAME: [{import.meta.env.VITE_FILEBASE_BUCKET_NAME}]
             </div>
 
             <div>
@@ -69,7 +68,6 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
         </div>
     );
 };
-
 
 // ==================================================================
 // COMPONENTE PRINCIPALE EXPORTATO
