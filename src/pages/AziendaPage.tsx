@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON FIX CORS E FALLBACK SU ETAG
+// VERSIONE FINALE DEFINITIVA - LETTURA DIRETTA DELL'HEADER IPFS CID
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -153,11 +153,12 @@ export default function AziendaPage() {
 
                 const result = await s3Client.send(command);
                 
-                // --- [MODIFICA] Codice reso più robusto. Prova a leggere il CID, se fallisce usa l'ETag ---
-                const cid = result.Metadata?.cid || result.ETag?.replace(/"/g, "");
+                // --- [MODIFICA DEFINITIVA] Leggiamo il CID direttamente dagli header grezzi ---
+                // La libreria AWS a volte non popola `result.Metadata`. Leggere da `$metadata.httpHeaders` è più affidabile.
+                const cid = result.$metadata.httpHeaders?.['x-amz-meta-cid'] || result.ETag?.replace(/"/g, "");
                 
                 if (!cid) {
-                    console.error("Sia Metadata.cid che ETag sono vuoti. Risposta:", result);
+                    console.error("Impossibile ottenere un identificativo del file da Filebase. Risposta:", result);
                     throw new Error("Impossibile ottenere un identificativo del file da Filebase.");
                 }
                 imageIpfsHash = cid;
