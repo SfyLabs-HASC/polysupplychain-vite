@@ -227,6 +227,22 @@ body {
     font-weight: 500;
 }
 
+/* Stile aggiuntivo per il nome cliccabile nella tabella */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #818cf8; /* Un blu/viola chiaro */
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.link-button:hover {
+  color: #a78bfa;
+}
+
 /* Paginazione */
 .pagination-controls {
     display: flex;
