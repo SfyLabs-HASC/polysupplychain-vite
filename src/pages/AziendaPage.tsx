@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE CON POPUP DI NOTIFICA TRANSAZIONE
+// VERSIONE CON FIX PER IL LOGOUT
 
 import React, { useState, useEffect } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
@@ -9,7 +9,7 @@ import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css'; 
 
-// Importa il nuovo componente di notifica
+// Importa il componente di notifica
 import TransactionStatusModal from '../components/TransactionStatusModal';
 
 // --- Configurazione e Componenti Helper (Invariati) ---
@@ -47,7 +47,6 @@ export default function AziendaPage() {
     const { disconnect } = useDisconnect();
     const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
     
-    // isPending gestisce lo stato di caricamento della transazione
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     
     const [modal, setModal] = useState<'init' | null>(null);
@@ -55,7 +54,6 @@ export default function AziendaPage() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     
-    // MODIFICA: Stato per gestire il risultato della transazione (successo/errore)
     const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
 
     const [allBatches, setAllBatches] = useState<(BatchMetadata & { localId: number })[]>([]);
@@ -64,7 +62,6 @@ export default function AziendaPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const today = new Date().toISOString().split('T')[0];
 
-    // Funzione per ricaricare i lotti, da chiamare dopo un'iscrizione
     const fetchAllBatches = async () => {
         if (!account?.address) return;
         setIsLoadingBatches(true);
@@ -82,7 +79,11 @@ export default function AziendaPage() {
     useEffect(() => { fetchAllBatches(); }, [account?.address]);
     useEffect(() => { setFilteredBatches(searchTerm ? allBatches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())) : allBatches); }, [searchTerm, allBatches]);
 
-    const handleLogout = () => { if (account) disconnect(account.wallet); };
+    // MODIFICA: Corretta la funzione di logout
+    const handleLogout = () => {
+        disconnect();
+    };
+
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
 
@@ -95,15 +96,16 @@ export default function AziendaPage() {
             setIsUploading(false);
             const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string,string,string,string,string)", params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] });
             
-            // MODIFICA: Rimossi gli alert e usiamo lo stato per il popup
             sendTransaction(transaction, { 
                 onSuccess: () => { 
                     setTxResult({ status: 'success', message: 'Iscrizione creata con successo!' });
-                    fetchAllBatches(); // Ricarica la lista dei lotti
-                    refetchContributorInfo(); // Ricarica i crediti
+                    fetchAllBatches(); 
+                    refetchContributorInfo();
                 },
                 onError: (err) => {
-                    const readableError = err.message.includes("insufficient funds") ? "Crediti insufficienti per completare l'operazione." : `Errore nella transazione.`;
+                    const readableError = err.message.toLowerCase().includes("insufficient funds") 
+                        ? "Crediti Insufficienti, Ricarica" 
+                        : "Errore nella transazione.";
                     setTxResult({ status: 'error', message: readableError });
                 } 
             });
@@ -113,7 +115,6 @@ export default function AziendaPage() {
         }
     };
     
-    // ... il resto del componente ...
     if (!account) { return <div className='login-container'><ConnectButton client={client} chain={polygon} accountAbstraction={{ chain: polygon, sponsorGas: true }} wallets={[inAppWallet()]} connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }} /></div>; }
     const renderDashboardContent = () => { if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>; const isActive = contributorData?.[2] ?? false; if (!isActive) return <RegistrationForm />; return (<> <DashboardHeader contributorInfo={contributorData!} onNewInscriptionClick={() => setModal('init')} /> <div className="search-bar-container"><input type="text" placeholder="Filtra iscrizioni per nome..." className="form-input" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div> {isLoadingBatches ? <p>Caricamento iscrizioni...</p> : <BatchTable batches={filteredBatches} />} </>); };
     return (
@@ -123,19 +124,16 @@ export default function AziendaPage() {
 
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div><div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>{selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}</div></div><div className="modal-footer"><button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button><button onClick={handleInitializeBatch} disabled={isPending || isUploading} className="web3-button">{isUploading ? "Caricamento..." : "Conferma"}</button></div></div></div> )}
             
-            {/* MODIFICA: Renderizza il popup di stato della transazione */}
             {(isPending || txResult) && (
                 <TransactionStatusModal
                     status={isPending ? 'loading' : txResult!.status}
                     message={isPending ? 'Transazione in corso, attendi...' : txResult!.message}
                     onClose={() => {
-                        // Se la transazione ha avuto successo, chiudi anche il form
                         if (txResult?.status === 'success') {
                             setModal(null);
                             setFormData({ name: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
                             setSelectedFile(null);
                         }
-                        // In ogni caso, nascondi il popup di notifica
                         setTxResult(null);
                     }}
                 />
