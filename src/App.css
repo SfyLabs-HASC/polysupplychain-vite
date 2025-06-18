@@ -94,7 +94,7 @@ body {
   padding: 0.75rem 1rem;
   font-size: 1rem;
   width: 100%;
-  box-sizing: border-box; /* Importante per non superare la larghezza */
+  box-sizing: border-box;
 }
 
 /* Tabella */
@@ -120,6 +120,20 @@ body {
 .company-table td {
   vertical-align: middle;
 }
+
+/* Stile per il nome cliccabile in tabella */
+.clickable-name {
+  cursor: pointer;
+  color: #bbb8f2; /* Colore personalizzato richiesto */
+  text-decoration: underline;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+
+.clickable-name:hover {
+  color: #dcd9fa; /* Versione leggermente più chiara per l'hover */
+}
+
 
 /* Pulsanti */
 .web3-button {
@@ -223,7 +237,7 @@ body {
 .modal-body {
   padding: 1.5rem;
   line-height: 1.6;
-  overflow-y: auto; /* Per descrizioni lunghe */
+  overflow-y: auto;
 }
 .modal-footer {
   padding: 1rem 1.5rem;
@@ -282,17 +296,50 @@ body {
     margin: 0 0.5rem;
 }
 
-
-/* MODIFICA AGGIUNTA QUI */
-/* Stile per il nome cliccabile in tabella */
-.clickable-name {
-  cursor: pointer;
-  color: var(--primary-color); /* Usa il colore primario del tema */
-  text-decoration: underline;
-  font-weight: bold;
-  transition: color 0.2s; /* Aggiunge una transizione fluida al cambio colore */
+/* Stili per l'Overlay di Caricamento Transazione */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(5px);
 }
 
-.clickable-name:hover {
-  color: var(--primary-hover-color); /* Usa il colore di hover del tema */
+.loading-box {
+  background-color: var(--card-bg);
+  padding: 2.5rem 3rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.loading-text {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #f0f0f0;
+  margin: 0;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #444;
+  border-top: 5px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
