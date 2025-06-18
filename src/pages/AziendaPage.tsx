@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON LAYOUT HEADER AGGIORNATO
+// VERSIONE CON LAYOUT HEADER CORRETTO
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -22,7 +22,6 @@ const contract = getContract({
 
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 
-// MODIFICA: Testo del pulsante cambiato in "Gestisci"
 const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
@@ -36,7 +35,7 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
     return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr><tr className="filter-row"><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th><th><select className="filter-input" value={dateSort} onChange={(e) => setDateSort(e.target.value)}><option value="recent">Più recenti</option><option value="oldest">Meno recenti</option></select></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th><th></th><th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th><th></th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
 };
 
-// MODIFICA: Struttura del DashboardHeader cambiata
+// MODIFICA: Layout del DashboardHeader cambiato
 const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
     const companyName = contributorInfo[0] || 'Azienda';
     const credits = contributorInfo[1].toString();
@@ -44,6 +43,9 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
         <div className="dashboard-header-card">
             <div className="welcome-section">
                 <h1>Ciao, "{companyName}"</h1>
+                <button className="web3-button large" onClick={onNewInscriptionClick}>Nuova Iscrizione</button>
+            </div>
+            <div className="status-section">
                 <div className="status-item">
                     <span>Crediti Rimanenti: <strong>{credits}</strong></span>
                 </div>
@@ -51,9 +53,6 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
                     <span>Stato: <strong>ATTIVO</strong></span>
                     <span className="status-icon">✅</span>
                 </div>
-            </div>
-            <div className="header-actions">
-                <button className="web3-button large" onClick={onNewInscriptionClick}>Nuova Iscrizione</button>
             </div>
         </div>
     );
