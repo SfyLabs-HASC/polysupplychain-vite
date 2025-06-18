@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE RIPRISTINATA COME RICHIESTO
+// VERSIONE MODIFICATA SECONDO LE RICHIESTE
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -35,21 +35,26 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
     return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr><tr className="filter-row"><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th><th><select className="filter-input" value={dateSort} onChange={(e) => setDateSort(e.target.value)}><option value="recent">Più recenti</option><option value="oldest">Meno recenti</option></select></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th><th></th><th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th><th></th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
 };
 
+// --- [MODIFICATO] Componente DashboardHeader per allineamento e stile ---
 const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
     const companyName = contributorInfo[0] || 'Azienda';
     const credits = contributorInfo[1].toString();
     return (
-        <div className="dashboard-header-card">
-            <div className="welcome-section">
-                <h1>Ciao, "{companyName}"</h1>
-                <div className="status-item">
-                    <span>Crediti Rimanenti: <strong>{credits}</strong></span>
-                </div>
-                <div className="status-item">
-                    <span>Stato: <strong>ATTIVO</strong></span>
-                    <span className="status-icon">✅</span>
+        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Sezione Sinistra: Info Utente */}
+            <div>
+                <h2 style={{ marginTop: 0, marginBottom: '1rem' }}>Ciao, "{companyName}"</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div className="status-item">
+                        <span>Crediti Rimanenti: <strong>{credits}</strong></span>
+                    </div>
+                    <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>Stato: <strong>ATTIVO</strong></span>
+                        <span className="status-icon">✅</span>
+                    </div>
                 </div>
             </div>
+            {/* Sezione Destra: Pulsante Azione */}
             <div className="header-actions">
                 <button className="web3-button large" onClick={onNewInscriptionClick}>Nuova Iscrizione</button>
             </div>
@@ -154,9 +159,10 @@ export default function AziendaPage() {
     
     return (
         <div className="app-container-full">
-            <header className="main-header-bar">
-                <div className="header-title">EasyChain - Area Riservata</div>
-                <div className="wallet-button-container">
+            {/* --- [MODIFICATO] Header principale --- */}
+            <header className="main-header-bar" style={{ width: '100%' }}>
+                {/* Il titolo è stato spostato nel main per un corretto allineamento */}
+                <div className="wallet-button-container" style={{ marginLeft: 'auto' }}>
                     <ConnectButton 
                         client={client} 
                         chain={polygon}
@@ -165,6 +171,10 @@ export default function AziendaPage() {
                 </div>
             </header>
             <main className="main-content-full">
+                {/* --- [AGGIUNTO] Titolo della pagina spostato qui --- */}
+                <h1 style={{ fontSize: '2.25rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>
+                    EasyChain - Area Riservata
+                </h1>
                 {renderDashboardContent()}
             </main>
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div><div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>{selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}</div></div><div className="modal-footer"><button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button><button onClick={handleInitializeBatch} disabled={isPending || isUploading} className="web3-button">{isUploading ? "Caricamento..." : "Conferma"}</button></div></div></div> )}
