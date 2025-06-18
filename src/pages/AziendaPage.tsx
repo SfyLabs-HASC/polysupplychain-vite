@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON FIX DEFINITIVO PER IL LOGOUT USANDO TRY...FINALLY
+// VERSIONE CON FIX CORRETTO PER IL LOGOUT (disconnect è sincrono)
 
 import React, { useState, useEffect } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
@@ -79,15 +79,10 @@ export default function AziendaPage() {
     useEffect(() => { fetchAllBatches(); }, [account?.address]);
     useEffect(() => { setFilteredBatches(searchTerm ? allBatches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())) : allBatches); }, [searchTerm, allBatches]);
 
-    // MODIFICA: Utilizzo di try/finally per garantire il ricaricamento della pagina.
-    const handleLogout = async () => {
-        try {
-            await disconnect();
-        } catch (error) {
-            console.error("Errore durante la disconnessione (verrà comunque ricaricata la pagina):", error);
-        } finally {
-            window.location.reload();
-        }
+    // MODIFICA: Funzione di logout corretta e semplificata.
+    const handleLogout = () => {
+        disconnect();
+        window.location.reload();
     };
 
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
