@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE MODIFICATA SECONDO LE NUOVE RICHIESTE
+// VERSIONE MODIFICATA CON NUOVO ORDINAMENTO E RIMOZIONE FILTRO DATA
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -30,12 +30,15 @@ const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => 
 };
 
 interface BatchData { id: string; batchId: bigint; name: string; description: string; date: string; location: string; isClosed: boolean; }
-const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLocationFilter, dateSort, setDateSort, statusFilter, setStatusFilter }: any) => {
+// --- [MODIFICATO] Rimosso il filtro per la data dai props ---
+const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLocationFilter, statusFilter, setStatusFilter }: any) => {
     const [currentPage, setCurrentPage] = useState(1); const [itemsToShow, setItemsToShow] = useState(10); const MAX_PER_PAGE = 30; const totalPages = Math.max(1, Math.ceil(batches.length / MAX_PER_PAGE)); const startIndex = (currentPage - 1) * MAX_PER_PAGE; const itemsOnCurrentPage = batches.slice(startIndex, startIndex + MAX_PER_PAGE); const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow); useEffect(() => { setCurrentPage(1); setItemsToShow(10); }, [batches]); const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE)); const handlePageChange = (page: number) => { if (page < 1 || page > totalPages) return; setCurrentPage(page); setItemsToShow(10); };
-    return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr><tr className="filter-row"><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th><th><select className="filter-input" value={dateSort} onChange={(e) => setDateSort(e.target.value)}><option value="recent">Più recenti</option><option value="oldest">Meno recenti</option></select></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th><th></th><th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th><th></th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
+    return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr><tr className="filter-row"><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th>
+    {/* --- [RIMOSSO] Il selettore per l'ordinamento per data è stato eliminato --- */}
+    <th></th>
+    <th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th><th></th><th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th><th></th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
 };
 
-// --- [MODIFICATO] Componente DashboardHeader per allineamento e stile ---
 const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
     const companyName = contributorInfo[0] || 'Azienda';
     const credits = contributorInfo[1].toString();
@@ -43,8 +46,7 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             {/* Sezione Sinistra: Info Utente */}
             <div>
-                {/* --- [MODIFICATO] Testo "Ciao" reso molto più grande --- */}
-                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, "{companyName}"</h2>
+                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, {companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item">
                         <span>Crediti Rimanenti: <strong>{credits}</strong></span>
@@ -92,7 +94,8 @@ export default function AziendaPage() {
     const [nameFilter, setNameFilter] = useState('');
     const [locationFilter, setLocationFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [dateSort, setDateSort] = useState('recent');
+    // --- [RIMOSSO] Lo stato per l'ordinamento per data non è più necessario ---
+    // const [dateSort, setDateSort] = useState('recent');
     const today = new Date().toISOString().split('T')[0];
 
     const fetchAllBatches = async () => {
@@ -109,14 +112,18 @@ export default function AziendaPage() {
 
     useEffect(() => { fetchAllBatches(); }, [account?.address]);
 
+    // --- [MODIFICATO] useEffect per la logica di filtro e ordinamento ---
     useEffect(() => {
         let tempBatches = [...allBatches];
         if (nameFilter) { tempBatches = tempBatches.filter(b => b.name.toLowerCase().includes(nameFilter.toLowerCase())); }
         if (locationFilter) { tempBatches = tempBatches.filter(b => b.location.toLowerCase().includes(locationFilter.toLowerCase())); }
         if (statusFilter !== 'all') { const isOpen = statusFilter === 'open'; tempBatches = tempBatches.filter(b => !b.isClosed === isOpen); }
-        tempBatches.sort((a, b) => dateSort === 'recent' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+        
+        // Ordina i batch per batchId in ordine decrescente (i più recenti prima)
+        tempBatches.sort((a, b) => Number(b.batchId - a.batchId));
+        
         setFilteredBatches(tempBatches);
-    }, [nameFilter, locationFilter, statusFilter, dateSort, allBatches]);
+    }, [nameFilter, locationFilter, statusFilter, allBatches]); // Rimosso 'dateSort' dalle dipendenze
     
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
@@ -150,7 +157,8 @@ export default function AziendaPage() {
                         batches={filteredBatches}
                         nameFilter={nameFilter} setNameFilter={setNameFilter}
                         locationFilter={locationFilter} setLocationFilter={setLocationFilter}
-                        dateSort={dateSort} setDateSort={setDateSort}
+                        // Rimosse le props non più necessarie
+                        // dateSort={dateSort} setDateSort={setDateSort}
                         statusFilter={statusFilter} setStatusFilter={setStatusFilter}
                     />
                 } 
@@ -159,9 +167,7 @@ export default function AziendaPage() {
     };
     
     return (
-        // --- [MODIFICATO] Aggiunto padding per allineare tutto il contenuto della pagina ---
         <div className="app-container-full" style={{ padding: '0 2rem' }}>
-            {/* --- [MODIFICATO] Header con titolo ripristinato e allineato --- */}
             <header className="main-header-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div>
                 <div className="wallet-button-container">
@@ -173,7 +179,6 @@ export default function AziendaPage() {
                 </div>
             </header>
             <main className="main-content-full">
-                {/* Il titolo H1 è stato rimosso da qui */}
                 {renderDashboardContent()}
             </main>
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div><div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/gif"/>{selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}</div></div><div className="modal-footer"><button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button><button onClick={handleInitializeBatch} disabled={isPending || isUploading} className="web3-button">{isUploading ? "Caricamento..." : "Conferma"}</button></div></div></div> )}
