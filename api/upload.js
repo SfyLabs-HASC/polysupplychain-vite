@@ -1,17 +1,15 @@
-// File: /api/upload.js
+// File: /api/upload.js (con log di debug)
 
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { formidable } from 'formidable';
 import fs from 'fs';
 
-// Disabilita il body parser di Vercel per questa rotta
 export const config = {
   api: {
     bodyParser: false,
   },
 };
 
-// Configura il client S3 leggendo le variabili d'ambiente (sul server si usa process.env)
 const s3Client = new S3Client({
   endpoint: "https://s3.filebase.com",
   region: "us-east-1",
@@ -52,14 +50,17 @@ export default async function handler(req, res) {
 
       const result = await s3Client.send(command);
 
-      // Qui, sul server, possiamo leggere l'header senza problemi di CORS
+      // --- RIGA DI DEBUG FONDAMENTALE ---
+      // Stampiamo l'intera risposta ricevuta da Filebase nei log di Vercel
+      console.log("RISPOSTA COMPLETA DA FILEBASE:", JSON.stringify(result, null, 2));
+      // ------------------------------------
+
       const cid = result.$metadata.httpHeaders?.['x-amz-meta-cid'] || result.ETag?.replace(/"/g, "");
 
       if (!cid) {
         return res.status(500).json({ error: 'CID not found in Filebase response.' });
       }
-
-      // Restituiamo il CID al browser
+      
       return res.status(200).json({ cid });
 
     } catch (error) {
