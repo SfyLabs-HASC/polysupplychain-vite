@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON FIX ASYNC PER IL LOGOUT
+// VERSIONE CON FIX PER IL LOGOUT TRAMITE RICARICAMENTO DELLA PAGINA
 
 import React, { useState, useEffect } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction, useDisconnect } from 'thirdweb/react';
@@ -79,9 +79,10 @@ export default function AziendaPage() {
     useEffect(() => { fetchAllBatches(); }, [account?.address]);
     useEffect(() => { setFilteredBatches(searchTerm ? allBatches.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())) : allBatches); }, [searchTerm, allBatches]);
 
-    // MODIFICA: La funzione di logout ora è asincrona
+    // MODIFICA: La funzione di logout ora ricarica la pagina per garantire una disconnessione pulita.
     const handleLogout = async () => {
         await disconnect();
+        window.location.reload();
     };
 
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
