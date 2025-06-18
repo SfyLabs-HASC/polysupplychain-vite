@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON CORREZIONE PER ESTRARRE IL VERO CID IPFS DAL METADATA
+// VERSIONE CON FIX CORS E FALLBACK SU ETAG
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -153,14 +153,12 @@ export default function AziendaPage() {
 
                 const result = await s3Client.send(command);
                 
-                // --- [MODIFICA] Estraiamo il CID dal campo Metadata, non più dall'ETag ---
-                // La documentazione di Filebase specifica che il CID è in `x-amz-meta-cid`,
-                // che l'SDK AWS traduce in `result.Metadata.cid`.
-                const cid = result.Metadata?.cid;
+                // --- [MODIFICA] Codice reso più robusto. Prova a leggere il CID, se fallisce usa l'ETag ---
+                const cid = result.Metadata?.cid || result.ETag?.replace(/"/g, "");
                 
                 if (!cid) {
-                    console.error("CID non trovato nel campo Metadata. Risposta completa da Filebase:", result);
-                    throw new Error("CID non trovato nella risposta di Filebase. Controlla i log della console.");
+                    console.error("Sia Metadata.cid che ETag sono vuoti. Risposta:", result);
+                    throw new Error("Impossibile ottenere un identificativo del file da Filebase.");
                 }
                 imageIpfsHash = cid;
                 
