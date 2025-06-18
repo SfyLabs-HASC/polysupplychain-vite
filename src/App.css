@@ -140,6 +140,12 @@ body {
     font-size: 1.1rem;
     padding: 0.8rem 1.5rem;
 }
+.web3-button.secondary {
+    background-color: #3f3f46;
+}
+.web3-button.secondary:hover {
+    background-color: #52525b;
+}
 
 .logout-button-top-right {
   background-color: var(--primary-color);
@@ -172,6 +178,12 @@ body {
   gap: 0.5rem;
   font-weight: 500;
 }
+.status-open {
+    color: #fde047; /* Giallo */
+}
+.status-closed {
+    color: #86efac; /* Verde */
+}
 
 /* Modali (Popups) */
 .modal-overlay {
@@ -193,6 +205,8 @@ body {
   width: 90%;
   max-width: 500px;
   box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
 }
 .modal-header {
   background-color: #2a2a2e;
@@ -209,38 +223,38 @@ body {
 .modal-body {
   padding: 1.5rem;
   line-height: 1.6;
+  overflow-y: auto; /* Per descrizioni lunghe */
 }
 .modal-footer {
   padding: 1rem 1.5rem;
   text-align: right;
   border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 .modal-footer .web3-button {
     min-width: 100px;
 }
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
 }
 .form-group label {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
 }
-
-/* Stile aggiuntivo per il nome cliccabile nella tabella */
-.link-button {
-  background: none;
-  border: none;
-  padding: 0;
-  color: #818cf8; /* Un blu/viola chiaro */
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: 1rem;
-  font-family: 'Inter', sans-serif;
+.char-counter {
+    display: block;
+    text-align: right;
+    font-size: 0.8rem;
+    color: #71717a;
+    margin-top: 0.25rem;
 }
-
-.link-button:hover {
-  color: #a78bfa;
+.file-name-preview {
+    font-size: 0.9rem;
+    color: #a0a0a0;
+    margin-top: 0.5rem;
 }
 
 /* Paginazione */
@@ -268,3 +282,17 @@ body {
     margin: 0 0.5rem;
 }
 
+
+/* MODIFICA AGGIUNTA QUI */
+/* Stile per il nome cliccabile in tabella */
+.clickable-name {
+  cursor: pointer;
+  color: var(--primary-color); /* Usa il colore primario del tema */
+  text-decoration: underline;
+  font-weight: bold;
+  transition: color 0.2s; /* Aggiunge una transizione fluida al cambio colore */
+}
+
+.clickable-name:hover {
+  color: var(--primary-hover-color); /* Usa il colore di hover del tema */
+}
