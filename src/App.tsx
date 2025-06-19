@@ -1,12 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-// --- MODIFICA --- I percorsi sono stati corretti ---
-// Visto che App.tsx è in /pages, non serve più specificare la cartella.
-import AziendaPage from './AziendaPage';
-import GestisciPage from './GestisciPage'; 
-// Anche il percorso del CSS va aggiornato per "salire" di una cartella
-import '../App.css';
+// --- MODIFICA --- Ripristinati i percorsi di importazione corretti ---
+// App.tsx si trova in /src, quindi per accedere alle pagine deve entrare in /pages
+import AziendaPage from './pages/AziendaPage';
+import GestisciPage from './pages/GestisciPage'; 
+// App.css è nella stessa cartella di App.tsx, quindi il percorso è semplice
+import './App.css';
 
 function App() {
   return (
