@@ -1,5 +1,6 @@
 // FILE: src/pages/GestisciPage.tsx
-// VERSIONE CON FIX DI SINTASSI FINALE NEL BLOCCO 'isLoading'
+// NUOVA PAGINA PER LA GESTIONE DI UN SINGOLO BATCH
+// test finale
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -23,16 +24,11 @@ const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     return (
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
             <div>
-                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>{companyName}</h2>
+                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, {companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
                     <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
                 </div>
-            </div>
-            <div className="header-actions">
-                <Link to="/dashboard" className="web3-button">
-                    Torna alla pagina principale
-                </Link>
             </div>
         </div>
     );
@@ -44,41 +40,33 @@ const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { bat
         ? `https://musical-emerald-partridge.myfilebase.com/ipfs/${batchInfo[7]}`
         : "https://musical-emerald-partridge.myfilebase.com/ipfs/QmNUGt9nxmkV27qF56jFAG9FUPABvGww5TTW9R9vh2TdvB";
     return (
-        <div className="card" style={{ 
-            marginTop: '2rem', 
-            border: '2px solid #8bc4a8',
-            backgroundColor: 'transparent',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: '2rem'
-        }}>
-            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', flex: '1' }}>
-                <img src={imageUrl} alt="Immagine batch" style={{ width: '180px', height: '180px', objectFit: 'cover', borderRadius: '8px', aspectRatio: '1 / 1' }}/>
-                <div style={{flex: '1', minWidth: '300px'}}>
-                    <h3 style={{fontSize: '1.5rem', marginTop: 0}}>{batchInfo[3]}</h3>
-                    <p><strong>Descrizione:</strong><br/>{batchInfo[4] || 'Nessuna descrizione fornita.'}</p>
-                    <p><strong>Luogo:</strong> {batchInfo[6] || 'N/D'}<br/><strong>Data:</strong> {batchInfo[5] || 'N/D'}</p>
-                    <p>
-                        <strong>Passaggi Registrati:</strong> {stepCount} | <strong>Stato Iscrizione:</strong> {batchInfo[8] ? <span className="status-closed">Chiuso</span> : <span className="status-open">Aperto</span>}
-                    </p>
+        <div className="card" style={{ marginTop: '2rem', backgroundColor: '#8bc4a8' }}>
+            <div style={{ display: 'flex', gap: '2rem' }}>
+                <div style={{ flex: '0 0 150px' }}>
+                    <img src={imageUrl} alt="Immagine batch" style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '8px', aspectRatio: '1 / 1' }}/>
+                </div>
+                <div style={{ flex: '1' }}>
+                    <h3>Riepilogo Iscrizione: {batchInfo[3]}</h3>
+                    <p><strong>Descrizione:</strong> {batchInfo[4] || 'N/D'}</p>
+                    <p><strong>Luogo:</strong> {batchInfo[6] || 'N/D'} | <strong>Data:</strong> {batchInfo[5] || 'N/D'}</p>
+                    <p><strong>N° Passaggi:</strong> {stepCount} | <strong>Stato:</strong> {batchInfo[8] ? <span className="status-closed">Chiuso</span> : <span className="status-open">Aperto</span>}</p>
+                    {!batchInfo[8] && (
+                        <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+                            <button className="web3-button" onClick={onAddStep}>Aggiungi Passaggio</button>
+                            <button className="web3-button secondary" onClick={onFinalize}>Finalizza Iscrizione</button>
+                        </div>
+                    )}
                 </div>
             </div>
-            {!batchInfo[8] && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <button className="web3-button" onClick={onAddStep}>Aggiungi Passaggio</button>
-                    <button className="web3-button secondary" onClick={onFinalize}>Finalizza Iscrizione</button>
-                </div>
-            )}
         </div>
     );
 };
 
 const StepCard = ({ stepInfo }: { stepInfo: any }) => (
-    <div className="card" style={{border: '1px solid #dee2e6', marginTop: '1rem'}}>
+    <div className="card" style={{backgroundColor: '#343a40', color: '#f8f9fa', marginTop: '1rem'}}>
         <h4>{stepInfo[0]}</h4>
         <p>{stepInfo[1]}</p>
-        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#6c757d'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#adb5bd'}}>
             <span>Luogo: {stepInfo[3]}</span>
             <span>Data: {stepInfo[2]}</span>
         </div>
@@ -119,9 +107,7 @@ export default function GestisciPage() {
         finally { setIsLoading(false); }
     };
 
-    useEffect(() => {
-        if (batchId) { fetchBatchData(); }
-    }, [batchId]);
+    useEffect(() => { fetchBatchData(); }, [batchId]);
 
     const handleFinalize = () => {
         if (!batchId || !confirm("Sei sicuro di voler finalizzare questa iscrizione? L'azione è irreversibile.")) return;
@@ -137,50 +123,29 @@ export default function GestisciPage() {
     return (
         <div className="app-container-full" style={{ padding: '0 2rem' }}>
             <header className="main-header-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Link to="/dashboard" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
                     <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div>
                 </Link>
                 <div className="wallet-button-container"><ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div>
             </header>
             <main className="main-content-full">
                 {contributorInfo && <GestisciPageHeader contributorInfo={contributorInfo} />}
-
-                {/* --- MODIFICA DI SINTASSI --- */}
-                {/* Riscritto il blocco per essere più robusto ed evitare errori di build */}
-                {isLoading && (
-                    <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento dati iscrizione...</p>
-                )}
-                {!isLoading && (
+                {isLoading ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento dati iscrizione...</p> : 
                     <>
                         <BatchSummaryCard batchInfo={batchInfo} stepCount={steps.length} onAddStep={handleAddStepClick} onFinalize={handleFinalize} />
                         <div style={{marginTop: '2rem'}}>
                             <h4>Passaggi dell'Iscrizione</h4>
-                            
-                            {steps.length === 0 && (
-                                <div style={{
-                                    textAlign: 'center',
-                                    padding: '4rem 2rem',
-                                    fontSize: '1.2rem',
-                                    color: '#6c757d',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    minHeight: '200px',
-                                }}>
-                                    <span style={{fontSize: '2.5rem', marginBottom: '1rem'}}>❌</span>
-                                    Nessun Passaggio aggiunto a questa iscrizione.
-                                    {batchInfo && !batchInfo[8] && <p style={{fontSize: '1rem', marginTop: '0.5rem'}}>Aggiungi nuovi passaggi o Finalizza l'iscrizione.</p>}
+                            {steps.length === 0 ? (
+                                <div className="card">
+                                    <p>Nessun Passaggio aggiunto a questa iscrizione.</p>
+                                    {batchInfo && !batchInfo[8] && <p>Aggiungi nuovi passaggi o Finalizza l'iscrizione.</p>}
                                 </div>
+                            ) : (
+                                steps.map((step, index) => <StepCard key={index} stepInfo={step} />)
                             )}
-                            {steps.length > 0 && steps.map((step, index) => (
-                                <StepCard key={index} stepInfo={step} />
-                            ))}
                         </div>
                     </>
-                )}
-                {/* --- FINE MODIFICA DI SINTASSI --- */}
-
+                }
             </main>
             {(isPending || txResult) && (
                 <TransactionStatusModal status={isPending ? 'loading' : txResult!.status} message={isPending ? 'Transazione in corso...' : txResult!.message} onClose={() => setTxResult(null)} />
