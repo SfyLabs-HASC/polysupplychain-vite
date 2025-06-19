@@ -1,5 +1,5 @@
 // FILE: src/pages/GestisciPage.tsx
-// VERSIONE CON NUOVO STILE E LAYOUT
+// VERSIONE CON FIX DI SINTASSI NEL BLOCCO DI VISUALIZZAZIONE DEGLI STEP
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -17,7 +17,6 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-// --- MODIFICA: Header con pulsante per tornare indietro ---
 const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     const companyName = contributorInfo ? contributorInfo[0] : 'Azienda';
     const credits = contributorInfo ? contributorInfo[1].toString() : '...';
@@ -30,7 +29,6 @@ const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
                     <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
                 </div>
             </div>
-            {/* Pulsante per tornare alla dashboard (AziendaPage) */}
             <div className="header-actions">
                 <Link to="/dashboard" className="web3-button">
                     Torna alla pagina principale
@@ -40,7 +38,6 @@ const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     );
 };
 
-// --- MODIFICA: Card riepilogativa con nuovo stile e layout ---
 const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { batchInfo: any, stepCount: number, onAddStep: () => void, onFinalize: () => void }) => {
     if (!batchInfo) return null;
     const imageUrl = batchInfo[7] && batchInfo[7] !== "N/A"
@@ -49,14 +46,13 @@ const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { bat
     return (
         <div className="card" style={{ 
             marginTop: '2rem', 
-            border: '2px solid #8bc4a8', // Bordino verde sottile
-            backgroundColor: 'transparent', // Sfondo vuoto
+            border: '2px solid #8bc4a8',
+            backgroundColor: 'transparent',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
             gap: '2rem'
         }}>
-            {/* Colonna sinistra con immagine e dettagli */}
             <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', flex: '1' }}>
                 <img src={imageUrl} alt="Immagine batch" style={{ width: '180px', height: '180px', objectFit: 'cover', borderRadius: '8px', aspectRatio: '1 / 1' }}/>
                 <div style={{flex: '1', minWidth: '300px'}}>
@@ -68,7 +64,6 @@ const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { bat
                     </p>
                 </div>
             </div>
-             {/* Colonna destra con i pulsanti di azione */}
             {!batchInfo[8] && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     <button className="web3-button" onClick={onAddStep}>Aggiungi Passaggio</button>
@@ -79,7 +74,6 @@ const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { bat
     );
 };
 
-// --- MODIFICA: Card dei passaggi con solo bordino grigio chiaro ---
 const StepCard = ({ stepInfo }: { stepInfo: any }) => (
     <div className="card" style={{border: '1px solid #dee2e6', marginTop: '1rem'}}>
         <h4>{stepInfo[0]}</h4>
@@ -95,7 +89,6 @@ const StepCard = ({ stepInfo }: { stepInfo: any }) => (
         )}
     </div>
 );
-
 
 export default function GestisciPage() {
     const { batchId } = useParams<{ batchId: string }>();
@@ -144,34 +137,11 @@ export default function GestisciPage() {
     return (
         <div className="app-container-full" style={{ padding: '0 2rem' }}>
             <header className="main-header-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Link to="/dashboard" style={{ textDecoration: 'none', color: 'inherit' }}>
                     <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div>
                 </Link>
                 <div className="wallet-button-container"><ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div>
             </header>
             <main className="main-content-full">
                 {contributorInfo && <GestisciPageHeader contributorInfo={contributorInfo} />}
-                {isLoading ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento dati iscrizione...</p> : 
-                    <>
-                        <BatchSummaryCard batchInfo={batchInfo} stepCount={steps.length} onAddStep={handleAddStepClick} onFinalize={handleFinalize} />
-                        <div style={{marginTop: '2rem'}}>
-                            <h4>Passaggi dell'Iscrizione</h4>
-                            {steps.length === 0 ? (
-                                // --- MODIFICA: Avviso "Nessun Passaggio" con nuovo stile ---
-                                <div style={{
-                                    textAlign: 'center',
-                                    padding: '4rem 2rem',
-                                    fontSize: '1.2rem',
-                                    color: '#6c757d',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    minHeight: '200px',
-                                }}>
-                                    <span style={{fontSize: '2.5rem', marginBottom: '1rem'}}>❌</span>
-                                    Nessun Passaggio aggiunto a questa iscrizione.
-                                    {batchInfo && !batchInfo[8] && <p style={{fontSize: '1rem', marginTop: '0.5rem'}}>Aggiungi nuovi passaggi o Finalizza l'iscrizione.</p>}
-                                </div>
-                            ) : (
-                                steps
+                {isLoading ? <p style={{
