@@ -1,6 +1,5 @@
 // FILE: src/pages/GestisciPage.tsx
-// NUOVA PAGINA PER LA GESTIONE DI UN SINGOLO BATCH
-// test finale (CON GRAFICA AGGIORNATA DALLO SCREENSHOT)
+// (CODICE AGGIORNATO E CORRETTO)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -18,38 +17,23 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-// MODIFICA: Header ridisegnato per matchare lo screenshot
+// MODIFICA: Header ripristinato per essere uguale alla pagina Azienda (con la "banda grigia")
 const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     const companyName = contributorInfo ? contributorInfo[0] : 'Azienda';
     const credits = contributorInfo ? contributorInfo[1].toString() : '...';
     return (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 0' }}>
+        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
             <div>
-                <h2 style={{ margin: 0, fontSize: '2.5rem', color: 'white' }}>{companyName}</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '0.5rem' }}>
+                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>{companyName}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
                     <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
                 </div>
             </div>
-            <Link to="/">
-                <button style={{
-                    backgroundColor: '#6A5ACD', // Viola
-                    color: 'white',
-                    border: 'none',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    fontWeight: 'bold'
-                }}>
-                    ← Torna alla Pagina Principale
-                </button>
-            </Link>
         </div>
     );
 };
 
-// MODIFICA: Placeholder per l'immagine
 const ImagePlaceholder = () => (
     <div style={{
         width: '150px', height: '150px', flexShrink: 0,
@@ -65,8 +49,6 @@ const ImagePlaceholder = () => (
     </div>
 );
 
-
-// MODIFICA: Card completamente ridisegnata per matchare lo screenshot
 const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { batchInfo: any, stepCount: number, onAddStep: () => void, onFinalize: () => void }) => {
     if (!batchInfo) return null;
     
@@ -85,26 +67,19 @@ const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { bat
             alignItems: 'center',
             gap: '2rem'
         }}>
-            {/* Colonna 1: Immagine o Placeholder */}
             {isPlaceholder ? <ImagePlaceholder /> : (
                  <img src={imageUrl} alt="Immagine batch" style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }}/>
             )}
-
-            {/* Colonna 2: Titolo e Descrizione */}
             <div style={{ flex: '1 1 40%', minWidth: 0 }}>
                 <h3 style={{ fontWeight: 'bold', fontSize: '1.75rem', margin: '0 0 0.5rem 0', color: 'white' }}>{batchInfo[3]}</h3>
                 <p style={{ margin: 0, color: '#ced4da', fontSize: '0.95rem' }}>{batchInfo[4] || 'Nessuna descrizione fornita.'}</p>
             </div>
-            
-            {/* Colonna 3: Dettagli */}
             <div style={{ flex: '1 1 25%', color: '#ced4da', textAlign: 'left' }}>
                 <p style={{margin: '0.3rem 0'}}><strong>Stato Iscrizione:</strong> <span style={{color: isClosed ? '#dc3545' : '#28a745', fontWeight:'bold'}}>{isClosed ? 'Chiuso' : 'Aperto'}</span></p>
                 <p style={{margin: '0.3rem 0'}}><strong>Luogo:</strong> {batchInfo[6] || 'N/D'}</p>
                 <p style={{margin: '0.3rem 0'}}><strong>Data:</strong> {batchInfo[5] || 'N/D'}</p>
                 <p style={{margin: '0.3rem 0'}}><strong>Passaggi Registrati:</strong> {stepCount}</p>
             </div>
-
-            {/* Colonna 4: Pulsanti */}
             {!isClosed && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <button onClick={onAddStep} style={{
@@ -145,7 +120,7 @@ export default function GestisciPage() {
     const { data: contributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
 
     const [batchInfo, setBatchInfo] = useState<any>(null);
-    const [steps, setSteps] = useState<any[]>([]);
+    const [steps, setSteps] = useState<any[]>(>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
@@ -183,19 +158,31 @@ export default function GestisciPage() {
 
     return (
         <div className="app-container-full" style={{ padding: '0 2rem' }}>
-            {/* MODIFICA: L'header ora include il pulsante e non è più dentro main */}
-            <header>
-                 {contributorInfo && <GestisciPageHeader contributorInfo={contributorInfo} />}
+            <header className="main-header-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div>
+                </Link>
+                <div className="wallet-button-container"><ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div>
             </header>
             
             <main className="main-content-full">
+                {contributorInfo && <GestisciPageHeader contributorInfo={contributorInfo} />}
+                
+                {/* MODIFICA: Pulsante riposizionato qui per coerenza con la pagina azienda */}
+                <div style={{ margin: '1rem 0' }}>
+                    <Link to="/">
+                        <button className="web3-button" style={{ padding: '1rem 2rem', fontSize: '1.25rem', fontWeight: 'bold' }}>
+                            ← Torna alla Pagina Principale
+                        </button>
+                    </Link>
+                </div>
+
                 {isLoading ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento dati iscrizione...</p> : 
                     <>
                         <BatchSummaryCard batchInfo={batchInfo} stepCount={steps.length} onAddStep={handleAddStepClick} onFinalize={handleFinalize} />
                         
                         <div style={{marginTop: '2rem'}}>
                             {steps.length === 0 ? (
-                                // MODIFICA: Sezione "Nessun Passaggio" ridisegnata come da screenshot
                                 <div style={{textAlign: 'center', padding: '2rem', color: '#adb5bd'}}>
                                     <span style={{fontSize: '3rem', color: '#dc3545', fontWeight: 'bold', lineHeight: '1'}}>×</span>
                                     <p>Nessun Passaggio aggiunto a questa iscrizione.</p>
