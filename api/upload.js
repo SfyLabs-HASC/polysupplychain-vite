@@ -1,6 +1,6 @@
-// File: /api/upload.js (con log di debug)
+// File: /api/upload.js (Versione Definitiva con logica PUT + HEAD)
 
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { formidable } from 'formidable';
 import fs from 'fs';
 
@@ -38,33 +38,40 @@ export default async function handler(req, res) {
       const file = files.file[0];
       const companyName = fields.companyName[0] || 'AziendaGenerica';
       const objectKey = `${companyName}/${Date.now()}_${file.originalFilename}`;
-
       const fileContent = fs.readFileSync(file.filepath);
 
-      const command = new PutObjectCommand({
+      // --- FASE 1: UPLOAD DEL FILE (PUT) ---
+      const putCommand = new PutObjectCommand({
         Bucket: BUCKET_NAME,
         Key: objectKey,
         Body: fileContent,
         ContentType: file.mimetype,
       });
+      await s3Client.send(putCommand);
 
-      const result = await s3Client.send(command);
+      // --- FASE 2: RICHIESTA DEI METADATI (HEAD) ---
+      // Ora che il file è caricato, chiediamo a Filebase le sue informazioni.
+      const headCommand = new HeadObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: objectKey,
+      });
+      const headResult = await s3Client.send(headCommand);
 
-      // --- RIGA DI DEBUG FONDAMENTALE ---
-      // Stampiamo l'intera risposta ricevuta da Filebase nei log di Vercel
-      console.log("RISPOSTA COMPLETA DA FILEBASE:", JSON.stringify(result, null, 2));
-      // ------------------------------------
-
-      const cid = result.$metadata.httpHeaders?.['x-amz-meta-cid'] || result.ETag?.replace(/"/g, "");
+      // La risposta a HEAD conterrà i metadati che cerchiamo.
+      const cid = headResult.Metadata?.cid;
 
       if (!cid) {
-        return res.status(500).json({ error: 'CID not found in Filebase response.' });
+        console.error("CID non trovato nei Metadata della richiesta HEAD. Risposta HEAD:", headResult);
+        // Se anche qui non c'è, usiamo l'ETag come ultimissima risorsa.
+        const fallbackId = headResult.ETag?.replace(/"/g, "");
+        return res.status(200).json({ cid: fallbackId });
       }
-      
+
+      // Restituiamo il CID corretto al browser!
       return res.status(200).json({ cid });
 
     } catch (error) {
-      console.error('Upload Error:', error);
+      console.error('Upload/Head Error:', error);
       return res.status(500).json({ error: 'File upload failed.', details: error.message });
     }
   });
