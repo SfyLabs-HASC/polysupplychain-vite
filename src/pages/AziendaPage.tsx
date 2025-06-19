@@ -6,9 +6,66 @@ import { polygon } from 'thirdweb/chains';
 import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css'; 
-import './AziendaPage.css'; // Stili per la responsività
 
 import TransactionStatusModal from '../components/TransactionStatusModal';
+
+// --- Stili CSS incorporati per responsività e per risolvere errore di build ---
+const AziendaPageStyles = () => (
+  <style>{`
+    /* Stili globali per la pagina */
+    .app-container-full { padding: 0 2rem; }
+    .main-header-bar { display: flex; justify-content: space-between; align-items: center; }
+    .header-title { font-size: 1.75rem; font-weight: bold; }
+    
+    /* Header del Dashboard */
+    .dashboard-header-card { display: flex; justify-content: space-between; align-items: center; position: relative; padding: 1.5rem; background-color: #212529; border: 1px solid #495057; border-radius: 8px; margin-bottom: 2rem; }
+    .dashboard-header-info { display: flex; flex-direction: column; }
+    .company-name-header { margin-top: 0; margin-bottom: 1rem; font-size: 3rem; }
+    .company-status-container { display: flex; align-items: center; gap: 1.5rem; }
+    .status-item { display: flex; align-items: center; gap: 0.5rem; }
+    .header-actions .web3-button.large { padding: 1rem 2rem; font-size: 1.1rem; }
+
+    /* Tabella e righe per Desktop */
+    .company-table .desktop-row { display: table-row; }
+    .company-table .mobile-card { display: none; }
+    .pagination-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; }
+
+    /* Stili per il riepilogo nel modal */
+    .recap-summary { text-align: left; padding: 15px; background-color: #2a2a2a; border: 1px solid #444; border-radius: 8px; margin-bottom: 20px;}
+    .recap-summary p { margin: 8px 0; }
+    .recap-summary p strong { color: #f8f9fa; }
+
+    /* Media Query per dispositivi mobili (max-width: 768px) */
+    @media (max-width: 768px) {
+        .app-container-full { padding: 0 1rem; }
+        .main-header-bar { flex-direction: column; align-items: flex-start; gap: 1rem; }
+        .header-title { font-size: 1.5rem; }
+        .wallet-button-container { align-self: flex-start; }
+        .dashboard-header-card { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+        .company-name-header { font-size: 2.2rem; }
+        .company-status-container { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+        .header-actions { width: 100%; }
+        .header-actions .web3-button.large { width: 100%; font-size: 1rem; }
+        
+        /* Modifiche alla tabella per visualizzazione a card */
+        .company-table thead { display: none; }
+        .company-table .desktop-row { display: none; }
+        .company-table tbody, .company-table tr, .company-table td { display: block; width: 100%; }
+        .company-table tr { margin-bottom: 1rem; }
+        .company-table td[colspan="7"] { padding: 20px; text-align: center; border: 1px solid #495057; border-radius: 8px; }
+        
+        /* Stili delle card per mobile */
+        .mobile-card { display: block; border: 1px solid #495057; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background-color: #2c3e50; }
+        .mobile-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; border-bottom: 1px solid #495057; padding-bottom: 0.75rem; }
+        .mobile-card .card-header strong { font-size: 1.1rem; }
+        .mobile-card .card-body p { margin: 0.5rem 0; }
+        .mobile-card .card-body p strong { color: #bdc3c7; }
+        .mobile-card .card-footer { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #495057; }
+        .mobile-card .web3-button { width: 100%; text-align: center; }
+        .pagination-controls { flex-direction: column; gap: 1rem; }
+    }
+  `}</style>
+);
 
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
 const contract = getContract({ 
@@ -32,6 +89,7 @@ const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => 
 
     return (
         <>
+            {/* Riga per Desktop */}
             <tr className="desktop-row">
                 <td>{localId}</td>
                 <td><span className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || '/'}</span></td>
@@ -41,23 +99,26 @@ const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => 
                 <td>{batch.isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>}</td>
                 <td><Link to={`/gestisci/${batch.batchId}`} className="web3-button">Gestisci</Link></td>
             </tr>
-            <div className="mobile-card">
-                <div className="card-header">
-                    <strong className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || 'N/A'}</strong>
-                    <span className={`status ${batch.isClosed ? 'status-closed' : 'status-open'}`}>
-                        {batch.isClosed ? '✅ Chiuso' : '⏳ Aperto'}
-                    </span>
-                </div>
-                <div className="card-body">
-                    <p><strong>ID:</strong> {localId}</p>
-                    <p><strong>Data:</strong> {formatDate(batch.date)}</p>
-                    <p><strong>Luogo:</strong> {batch.location || '/'}</p>
-                    <p><strong>N° Passaggi:</strong> {stepCount !== undefined ? stepCount.toString() : '/'}</p>
-                </div>
-                <div className="card-footer">
-                    <Link to={`/gestisci/${batch.batchId}`} className="web3-button">Gestisci</Link>
-                </div>
-            </div>
+            {/* Card per Mobile */}
+            <tr className="mobile-card">
+                <td>
+                    <div className="card-header">
+                        <strong className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || 'N/A'}</strong>
+                        <span className={`status ${batch.isClosed ? 'status-closed' : 'status-open'}`}>
+                            {batch.isClosed ? '✅ Chiuso' : '⏳ Aperto'}
+                        </span>
+                    </div>
+                    <div className="card-body">
+                        <p><strong>ID:</strong> {localId}</p>
+                        <p><strong>Data:</strong> {formatDate(batch.date)}</p>
+                        <p><strong>Luogo:</strong> {batch.location || '/'}</p>
+                        <p><strong>N° Passaggi:</strong> {stepCount !== undefined ? stepCount.toString() : '/'}</p>
+                    </div>
+                    <div className="card-footer">
+                        <Link to={`/gestisci/${batch.batchId}`} className="web3-button">Gestisci</Link>
+                    </div>
+                </td>
+            </tr>
             {showDescription && (
                 <div className="modal-overlay" onClick={() => setShowDescription(false)}>
                     <div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}>
@@ -85,7 +146,7 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
     useEffect(() => {
         setCurrentPage(1);
         setItemsToShow(10);
-    }, [batches]);
+    }, [batches, nameFilter, locationFilter, statusFilter]);
 
     const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE));
     const handlePageChange = (page: number) => {
@@ -103,9 +164,9 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
                     </tr>
                     <tr className="filter-row">
                         <th></th>
-                        <th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th>
+                        <th><input type="text" placeholder="Filtra per nome..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th>
                         <th></th>
-                        <th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th>
+                        <th><input type="text" placeholder="Filtra per luogo..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th>
                         <th></th>
                         <th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th>
                         <th></th>
@@ -114,7 +175,7 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
                 <tbody>
                     {visibleBatches.length > 0 ? 
                         visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />) : 
-                        (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)
+                        (<tr><td colSpan={7} style={{textAlign: 'center', padding: '2rem'}}>Nessuna iscrizione trovata.</td></tr>)
                     }
                 </tbody>
             </table>
@@ -137,7 +198,7 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
             <div className="dashboard-header-info">
                 <h2 className="company-name-header">{companyName}</h2>
                 <div className="company-status-container">
-                    <div className="status-item"><span>Crediti: <strong>{credits}</strong></span></div>
+                    <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
                     <div className="status-item"><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
                 </div>
             </div>
@@ -148,11 +209,10 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
     );
 };
 
-// Initial state for the form
 const getInitialFormData = () => ({
     name: "",
     description: "",
-    date: "", 
+    date: "", // Campo data vuoto di default
     location: ""
 });
 
@@ -166,17 +226,6 @@ export default function AziendaPage() {
     });
 
     const prevAccountRef = useRef(account?.address);
-    useEffect(() => {
-        if (prevAccountRef.current && !account) {
-            window.location.href = '/';
-        }
-        if (account?.address && prevAccountRef.current !== account.address) {
-            refetchContributorInfo();
-            fetchAllBatches();
-        }
-        prevAccountRef.current = account?.address;
-    }, [account]);
-
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     
     const [modal, setModal] = useState<'init' | null>(null);
@@ -204,7 +253,7 @@ export default function AziendaPage() {
                 .then(info => ({ id: id.toString(), batchId: id, name: info[3], description: info[4], date: info[5], location: info[6], isClosed: info[8] }))
             );
             const results = await Promise.all(batchDataPromises);
-            setAllBatches(results);
+            setAllBatches(results.sort((a, b) => Number(b.batchId) - Number(a.batchId)));
         } catch (error) {
             console.error("Errore nel caricare i lotti:", error);
             setAllBatches([]);
@@ -214,10 +263,16 @@ export default function AziendaPage() {
     };
 
     useEffect(() => {
-        if (account?.address) {
+        if (account?.address && prevAccountRef.current !== account.address) {
+            refetchContributorInfo();
             fetchAllBatches();
+        } else if (account?.address && !prevAccountRef.current) {
+             fetchAllBatches();
+        } else if (!account && prevAccountRef.current) {
+            window.location.href = '/';
         }
-    }, [account?.address]);
+        prevAccountRef.current = account?.address;
+    }, [account]);
 
     useEffect(() => {
         let tempBatches = [...allBatches];
@@ -227,13 +282,11 @@ export default function AziendaPage() {
             const isOpen = statusFilter === 'open';
             tempBatches = tempBatches.filter(b => !b.isClosed === isOpen);
         }
-        tempBatches.sort((a, b) => Number(b.batchId) - Number(a.batchId));
         setFilteredBatches(tempBatches);
     }, [nameFilter, locationFilter, statusFilter, allBatches]);
     
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({...prev, [name]: value}));
+        setFormData(prev => ({...prev, [e.target.name]: e.target.value}));
     };
     
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -241,52 +294,45 @@ export default function AziendaPage() {
     };
     
     const handleInitializeBatch = async () => {
-        setCurrentStep(prev => prev + 1); // visually confirms click, then process
-    
         if (!formData.name.trim()) {
             setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' });
-            setCurrentStep(6); // Go back to confirmation step
             return;
         }
     
+        setLoadingMessage('Preparazione transazione...');
         let imageIpfsHash = "N/A";
+
         if (selectedFile) {
             const MAX_SIZE_MB = 5;
             const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
             const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
             if (selectedFile.size > MAX_SIZE_BYTES) {
-                setTxResult({ status: 'error', message: `Il file è troppo grande. Limite: ${MAX_SIZE_MB} MB.` });
-                setCurrentStep(6);
-                return;
+                setTxResult({ status: 'error', message: `File troppo grande. Limite: ${MAX_SIZE_MB} MB.` }); return;
             }
             if (!ALLOWED_FORMATS.includes(selectedFile.type)) {
-                setTxResult({ status: 'error', message: 'Formato immagine non supportato.' });
-                setCurrentStep(6);
-                return;
+                setTxResult({ status: 'error', message: 'Formato immagine non supportato.' }); return;
             }
-    
-            setLoadingMessage('Caricamento Immagine, attendi...');
+            
+            setLoadingMessage('Caricamento Immagine...');
             try {
                 const body = new FormData();
                 body.append('file', selectedFile);
                 body.append('companyName', contributorData?.[0] || 'AziendaGenerica');
-                const response = await fetch('/api/upload', { method: 'POST', body: body });
+                const response = await fetch('/api/upload', { method: 'POST', body });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.details || 'Errore dal server di upload.');
                 }
                 const { cid } = await response.json();
-                if (!cid) throw new Error("CID non ricevuto dall'API.");
+                if (!cid) throw new Error("CID non ricevuto dall'API di upload.");
                 imageIpfsHash = cid;
             } catch (error: any) {
                 setTxResult({ status: 'error', message: `Errore caricamento: ${error.message}` });
-                setLoadingMessage('');
-                setCurrentStep(6);
-                return;
+                setLoadingMessage(''); return;
             }
         }
     
-        setLoadingMessage('Transazione in corso, attendi...');
+        setLoadingMessage('Transazione in corso...');
         const transaction = prepareContractCall({ 
             contract, abi, 
             method: "function initializeBatch(string,string,string,string,string)", 
@@ -296,205 +342,142 @@ export default function AziendaPage() {
         sendTransaction(transaction, { 
             onSuccess: async () => { 
                 setTxResult({ status: 'success', message: 'Iscrizione creata con successo!' });
+                await Promise.all([fetchAllBatches(), refetchContributorInfo()]);
                 setLoadingMessage('');
-                await fetchAllBatches(); 
-                await refetchContributorInfo();
             },
             onError: (err) => { 
                 setTxResult({ status: 'error', message: err.message.toLowerCase().includes("insufficient funds") ? "Crediti Insufficienti, Ricarica" : "Errore nella transazione." }); 
                 setLoadingMessage('');
-                setCurrentStep(6);
             } 
         });
     };
     
-    const handleCloseModal = () => {
-        setModal(null);
-        setCurrentStep(1);
+    const openModal = () => {
         setFormData(getInitialFormData());
         setSelectedFile(null);
-    };
+        setCurrentStep(1);
+        setTxResult(null);
+        setModal('init');
+    }
 
+    const handleCloseModal = () => setModal(null);
     const handleNextStep = () => {
         if (currentStep === 1 && !formData.name.trim()) {
-            alert("Il campo 'Nome Iscrizione' è obbligatorio per procedere.");
-            return;
+            alert("Il campo 'Nome Iscrizione' è obbligatorio."); return;
         }
-        setCurrentStep(prev => prev + 1);
+        if (currentStep < 6) setCurrentStep(prev => prev + 1);
     };
-
-    const handlePrevStep = () => setCurrentStep(prev => prev - 1);
+    const handlePrevStep = () => {
+        if (currentStep > 1) setCurrentStep(prev => prev - 1);
+    };
     
     if (!account) {
         return (
             <div className='login-container'>
-                <ConnectButton 
-                    client={client} 
-                    chain={polygon} 
-                    accountAbstraction={{ chain: polygon, sponsorGas: true }} 
-                    wallets={[inAppWallet()]} 
-                    connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }} 
-                />
+                <AziendaPageStyles />
+                <ConnectButton client={client} chain={polygon} accountAbstraction={{ chain: polygon, sponsorGas: true }} wallets={[inAppWallet()]} connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }} />
             </div>
         );
     }
     
     const renderDashboardContent = () => { 
         if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>; 
-        if (isError) return <p style={{textAlign: 'center', marginTop: '4rem', color: 'red'}}>Errore nel recuperare i dati dell'account. Riprova.</p>
+        if (isError || !contributorData) return <p style={{textAlign: 'center', marginTop: '4rem', color: 'red'}}>Errore nel recuperare i dati dell'account. Riprova.</p>
         
-        const isActive = contributorData?.[2] ?? false; 
-        if (!isActive) return <RegistrationForm />; 
+        if (!contributorData[2]) return <RegistrationForm />; 
         
         return (
             <> 
-                <DashboardHeader contributorInfo={contributorData!} onNewInscriptionClick={() => { setModal('init'); setCurrentStep(1); setFormData(getInitialFormData()); setSelectedFile(null); }} /> 
+                <DashboardHeader contributorInfo={contributorData} onNewInscriptionClick={openModal} /> 
                 {isLoadingBatches ? 
                     <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento iscrizioni...</p> : 
-                    <BatchTable 
-                        batches={filteredBatches} 
-                        nameFilter={nameFilter} setNameFilter={setNameFilter} 
-                        locationFilter={locationFilter} setLocationFilter={setLocationFilter} 
-                        statusFilter={statusFilter} setStatusFilter={setStatusFilter}
-                    />
+                    <BatchTable batches={filteredBatches} nameFilter={nameFilter} setNameFilter={setNameFilter} locationFilter={locationFilter} setLocationFilter={setLocationFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter}/>
                 } 
             </>
         ); 
     };
     
     const isProcessing = loadingMessage !== '' || isPending;
+    const today = new Date().toISOString().split('T')[0];
     
-    const helpTextStyle = {
-        backgroundColor: '#343a40', border: '1px solid #495057', borderRadius: '8px',
-        padding: '16px', marginTop: '16px', fontSize: '0.9rem', color: '#f8f9fa'
-    };
-
-    const recapStyle = {
-        textAlign: 'left' as const, padding: '10px', border: '1px solid #495057', 
-        borderRadius: '8px', backgroundColor: '#2c3034', marginBottom: '20px'
-    };
+    const helpTextStyle = { backgroundColor: '#343a40', border: '1px solid #495057', borderRadius: '8px', padding: '16px', marginTop: '16px', fontSize: '0.9rem', color: '#f8f9fa' };
 
     return (
         <div className="app-container-full">
+            <AziendaPageStyles />
             <header className="main-header-bar">
                 <div className="header-title">EasyChain - Area Riservata</div>
                 <div className="wallet-button-container">
-                    <ConnectButton 
-                        client={client} 
-                        chain={polygon} 
-                        detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}
-                    />
+                    <ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/>
                 </div>
             </header>
-            <main className="main-content-full">
-                {renderDashboardContent()}
-            </main>
+            <main className="main-content-full">{renderDashboardContent()}</main>
             
             {modal === 'init' && ( 
                 <div className="modal-overlay" onClick={handleCloseModal}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header"><h2>Nuova Iscrizione ({currentStep}/6)</h2></div>
                         <div className="modal-body" style={{ minHeight: '350px' }}>
-                            {/* Steps 1 to 5 */}
                             {currentStep === 1 && (
                                 <div>
-                                    <div className="form-group">
-                                        <label>Nome Iscrizione <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label>
-                                        <input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={100} />
-                                        <small className="char-counter">{formData.name.length} / 100</small>
-                                    </div>
-                                    <div style={helpTextStyle}>
-                                        <p><strong>ℹ️ Come scegliere il Nome Iscrizione</strong></p>
-                                        <p>Il Nome Iscrizione è un'etichetta che ti aiuta a identificare ciò che stai registrando. Ad esempio:</p>
-                                        <ul style={{textAlign: 'left', paddingLeft: '20px'}}>
-                                            <li>Prodotto: <em>Pomodori San Marzano 2025</em></li>
-                                            <li>Lotto: <em>Lotto LT1025 – Olio EVO 3L</em></li>
-                                            <li>Contratto: <em>Contratto fornitura COOP – Aprile 2025</em></li>
-                                        </ul>
-                                        <p style={{marginTop: '1rem'}}><strong>📌 Consiglio:</strong> scegli un nome breve ma significativo.</p>
-                                    </div>
+                                    <div className="form-group"><label>Nome Iscrizione <span style={{color: 'red', fontWeight:'bold'}}>*</span></label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.name.length} / 100</small></div>
+                                    <div style={helpTextStyle}><p><strong>ℹ️ Nome Iscrizione:</strong> un'etichetta per identificare la registrazione (es: <em>Lotto Pomodori 2025</em>, <em>Contratto Fornitura #123</em>).</p></div>
                                 </div>
                             )}
                             {currentStep === 2 && (
                                 <div>
-                                    <div className="form-group">
-                                        <label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
-                                        <textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea>
-                                        <small className="char-counter">{formData.description.length} / 500</small>
-                                    </div>
-                                    <div style={helpTextStyle}><p>Fornisci i dettagli essenziali per identificare l'elemento nella filiera.</p></div>
+                                    <div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div>
+                                    <div style={helpTextStyle}><p>Dettagli per identificare l'elemento nella filiera.</p></div>
                                 </div>
                             )}
                             {currentStep === 3 && (
                                 <div>
-                                    <div className="form-group">
-                                        <label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
-                                        <input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} />
-                                        <small className="char-counter">{formData.location.length} / 100</small>
-                                    </div>
-                                    <div style={helpTextStyle}><p>Inserisci il luogo di origine o produzione (città, regione, stabilimento).</p></div>
+                                    <div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div>
+                                    <div style={helpTextStyle}><p>Luogo di origine/produzione (città, regione, stabilimento).</p></div>
                                 </div>
                             )}
                             {currentStep === 4 && (
                                 <div>
-                                    <div className="form-group">
-                                        <label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
-                                        <input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={new Date().toISOString().split('T')[0]} />
-                                    </div>
-                                    <div style={helpTextStyle}><p>Inserisci una data. Se vuoto, non verrà registrata.</p></div>
+                                    <div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div>
+                                    <div style={helpTextStyle}><p>Data di riferimento dell'iscrizione. Se non specificata, non verrà registrata.</p></div>
                                 </div>
                             )}
                             {currentStep === 5 && (
                                 <div>
-                                    <div className="form-group">
-                                        <label>Immagine <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
-                                        <input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/webp"/>
-                                        {selectedFile && <p className="file-name-preview">File: {selectedFile.name}</p>}
-                                        <small style={{marginTop: '4px'}}>Formati: PNG, JPG, WEBP. Max: 5 MB.</small>
-                                    </div>
-                                    <div style={helpTextStyle}>
-                                        <p>Carica un’immagine rappresentativa. Per una visualizzazione ottimale, usa un'immagine quadrata (1:1).</p>
-                                    </div>
+                                    <div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/webp"/><small style={{marginTop: '4px'}}>Formati: PNG, JPG, WEBP. Max: 5 MB.</small>{selectedFile && <p className="file-name-preview">File: {selectedFile.name}</p>}</div>
+                                    <div style={helpTextStyle}><p>Immagine rappresentativa (opzionale). Usa un formato quadrato per una resa migliore.</p></div>
                                 </div>
                             )}
                              {currentStep === 6 && (
                                 <div>
                                     <h4>Riepilogo Dati</h4>
-                                    <div style={recapStyle}>
+                                    <div className="recap-summary">
                                         <p><strong>Nome:</strong> {formData.name || 'Non specificato'}</p>
                                         <p><strong>Descrizione:</strong> {formData.description || 'Non specificata'}</p>
                                         <p><strong>Luogo:</strong> {formData.location || 'Non specificato'}</p>
                                         <p><strong>Data:</strong> {formData.date ? formData.date.split('-').reverse().join('/') : 'Non specificata'}</p>
                                         <p><strong>Immagine:</strong> {selectedFile?.name || 'Nessuna'}</p>
                                     </div>
-                                    <p>Vuoi confermare tutti i dati che hai immesso?</p>
+                                    <p>Vuoi confermare e registrare questi dati sulla blockchain?</p>
                                 </div>
                             )}
                         </div>
                         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
                             <div>
-                                {currentStep > 1 && <button onClick={handlePrevStep} className="web3-button secondary">Indietro</button>}
+                                {currentStep > 1 && <button onClick={handlePrevStep} className="web3-button secondary" disabled={isProcessing}>Indietro</button>}
                             </div>
                             <div>
-                                <button onClick={handleCloseModal} className="web3-button secondary">Chiudi</button>
+                                <button onClick={handleCloseModal} className="web3-button secondary" disabled={isProcessing}>Chiudi</button>
                                 {currentStep < 6 && <button onClick={handleNextStep} className="web3-button">Avanti</button>}
-                                {currentStep === 6 && <button onClick={handleInitializeBatch} disabled={isProcessing} className="web3-button">{isProcessing ? "..." : "Conferma"}</button>}
+                                {currentStep === 6 && <button onClick={handleInitializeBatch} disabled={isProcessing} className="web3-button">{isProcessing ? "Conferma in corso..." : "Conferma e Registra"}</button>}
                             </div>
                         </div>
                     </div>
                 </div> 
             )}
             
-            {isProcessing && (
-                <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />
-            )}
-
-            {txResult && (
-                <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => { 
-                    if (txResult?.status === 'success') handleCloseModal();
-                    setTxResult(null); 
-                }} />
-            )}
+            {isProcessing && <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />}
+            {txResult && <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => { if (txResult.status === 'success') handleCloseModal(); setTxResult(null); }} />}
         </div>
     );
 }
