@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE CON NUOVO POPUP A PASSAGGI (WIZARD)
+// VERSIONE CON CORREZIONI GRAFICHE AL POPUP E AL FLUSSO DI CARICAMENTO
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -33,7 +33,6 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
     return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr><tr className="filter-row"><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th><th></th><th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th><th></th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
 };
 
-// --- [MODIFICATO] DashboardHeader senza più il box di debug ---
 const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
     const companyName = contributorInfo[0] || 'Azienda';
     const credits = contributorInfo[1].toString();
@@ -78,8 +77,6 @@ export default function AziendaPage() {
     const today = new Date().toISOString().split('T')[0];
     
     const [loadingMessage, setLoadingMessage] = useState('');
-    
-    // --- [MODIFICATO] Stato per gestire il passaggio corrente del wizard ---
     const [currentStep, setCurrentStep] = useState(1);
 
     const fetchAllBatches = async () => {
@@ -109,7 +106,9 @@ export default function AziendaPage() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
     
     const handleInitializeBatch = async () => {
-        // La logica interna rimane la stessa, viene chiamata solo alla fine
+        // --- [MODIFICA] Chiudiamo il modal del wizard per mostrare quello di loading ---
+        setModal(null);
+
         if (!formData.name.trim()) {
             setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' });
             return;
@@ -204,14 +203,15 @@ export default function AziendaPage() {
     
     const isProcessing = loadingMessage !== '' || isPending;
     
+    // --- [MODIFICA] Stile del box di aiuto con sfondo scuro ---
     const helpTextStyle = {
-        backgroundColor: '#f8f9fa',
-        border: '1px solid #dee2e6',
+        backgroundColor: '#343a40', // Grigio scuro
+        border: '1px solid #495057',
         borderRadius: '8px',
         padding: '16px',
         marginTop: '16px',
         fontSize: '0.9rem',
-        color: '#495057'
+        color: '#f8f9fa' // Testo chiaro
     };
 
     return (
@@ -224,9 +224,6 @@ export default function AziendaPage() {
                 {renderDashboardContent()}
             </main>
             
-            {/* --- [RIMOSSO] Il box di debug per l'immagine a fondo pagina --- */}
-
-            {/* --- [MODIFICATO] Nuovo modal a passaggi (wizard) --- */}
             {modal === 'init' && ( 
                 <div className="modal-overlay" onClick={handleCloseModal}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -243,14 +240,14 @@ export default function AziendaPage() {
                                     <div style={helpTextStyle}>
                                         <p><strong>ℹ️ Come scegliere il Nome Iscrizione</strong></p>
                                         <p>Il Nome Iscrizione è un'etichetta descrittiva che ti aiuta a identificare in modo chiaro ciò che stai registrando on-chain. Ad esempio:</p>
-                                        <ul>
+                                        <ul style={{textAlign: 'left', paddingLeft: '20px'}}>
                                             <li>Il nome di un prodotto o varietà: <em>Pomodori San Marzano 2025</em></li>
                                             <li>Il numero di lotto: <em>Lotto LT1025 – Olio EVO 3L</em></li>
                                             <li>Il nome di un contratto: <em>Contratto fornitura COOP – Aprile 2025</em></li>
                                             <li>Una certificazione o audit: <em>Certificazione Bio ICEA 2025</em></li>
                                             <li>Un riferimento amministrativo: <em>Ordine n.778 – Cliente NordItalia</em></li>
                                         </ul>
-                                        <p><strong>📌 Consiglio:</strong> scegli un nome breve ma significativo, che ti aiuti a ritrovare facilmente l’iscrizione anche dopo mesi o anni.</p>
+                                        <p style={{marginTop: '1rem'}}><strong>📌 Consiglio:</strong> scegli un nome breve ma significativo, che ti aiuti a ritrovare facilmente l’iscrizione anche dopo mesi o anni.</p>
                                     </div>
                                 </div>
                             )}
@@ -263,7 +260,7 @@ export default function AziendaPage() {
                                         <small className="char-counter">{formData.description.length} / 500</small>
                                     </div>
                                      <div style={helpTextStyle}>
-                                        <p>Inserisci una descrizione del prodotto, lotto, contratto o altro. Fornisci tutte le informazioni essenziali per identificarlo chiaramente nella filiera o nel contesto dell’iscrizione.</p>
+                                        <p>Inserisci una descrizione del prodotto, lotto, contratto o altro elemento principale. Fornisci tutte le informazioni essenziali per identificarlo chiaramente nella filiera o nel contesto dell’iscrizione.</p>
                                     </div>
                                 </div>
                             )}
@@ -315,17 +312,18 @@ export default function AziendaPage() {
                             <div>
                                 <button onClick={handleCloseModal} className="web3-button secondary">Chiudi</button>
                                 {currentStep < 5 && <button onClick={handleNextStep} className="web3-button">Avanti</button>}
-                                {currentStep === 5 && <button onClick={handleInitializeBatch} disabled={isProcessing} className="web3-button">{isProcessing ? (loadingMessage || "...") : "Conferma"}</button>}
+                                {currentStep === 5 && <button onClick={handleInitializeBatch} disabled={isProcessing} className="web3-button">{isProcessing ? "..." : "Conferma"}</button>}
                             </div>
                         </div>
                     </div>
                 </div> 
             )}
             
-            {(isProcessing && modal !== 'init') && ( 
-                <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} /> 
+            {/* --- [MODIFICA] Logica di visualizzazione dei popup di stato --- */}
+            {isProcessing && (
+                <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />
             )}
-            {(txResult) && (
+            {txResult && (
                  <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => { 
                     if (txResult?.status === 'success') { handleCloseModal(); } 
                     setTxResult(null); 
