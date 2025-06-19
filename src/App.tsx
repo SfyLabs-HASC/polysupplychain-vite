@@ -1,8 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import AziendaPage from './pages/AziendaPage';
-import GestisciPage from './pages/GestisciPage'; // La nuova pagina che creeremo
-import './App.css';
+
+// --- MODIFICA --- I percorsi sono stati corretti ---
+// Visto che App.tsx è in /pages, non serve più specificare la cartella.
+import AziendaPage from './AziendaPage';
+import GestisciPage from './GestisciPage'; 
+// Anche il percorso del CSS va aggiornato per "salire" di una cartella
+import '../App.css';
 
 function App() {
   return (
