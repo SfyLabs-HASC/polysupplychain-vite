@@ -1,5 +1,6 @@
 // FILE: src/pages/GestisciPage.tsx
 // NUOVA PAGINA PER LA GESTIONE DI UN SINGOLO BATCH
+// test finale
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
