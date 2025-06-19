@@ -1,5 +1,5 @@
 // FILE: src/pages/GestisciPage.tsx
-// (CODICE AGGIORNATO E CORRETTO)
+// (CODICE CON HEADER CORRETTO COME DA SCREENSHOT)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -17,18 +17,36 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-// MODIFICA: Header ripristinato per essere uguale alla pagina Azienda (con la "banda grigia")
+// MODIFICA: Header ora include il pulsante sulla destra, come nello screenshot
 const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     const companyName = contributorInfo ? contributorInfo[0] : 'Azienda';
     const credits = contributorInfo ? contributorInfo[1].toString() : '...';
     return (
-        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
+        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Sezione sinistra con nome e crediti */}
             <div>
                 <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>{companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
                     <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
                 </div>
+            </div>
+            {/* Sezione destra con il pulsante */}
+            <div>
+                <Link to="/">
+                    <button style={{
+                        backgroundColor: '#6A5ACD', // Viola
+                        color: 'white',
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: 'bold'
+                    }}>
+                        ← Torna alla Pagina Principale
+                    </button>
+                </Link>
             </div>
         </div>
     );
@@ -106,7 +124,7 @@ const StepCard = ({ stepInfo }: { stepInfo: any }) => (
             <span>Luogo: {stepInfo[3]}</span>
             <span>Data: {stepInfo[2]}</span>
         </div>
-        {stepInfo[4] && stepInfo[4] !== "N/A" && (
+        {stepInfo[4] && stepInfo[4] !== "n/A" && (
              <a href={`https://musical-emerald-partridge.myfilebase.com/ipfs/${stepInfo[4]}`} target="_blank" rel="noopener noreferrer" className="link-button" style={{marginTop: '1rem'}}>
                  Vedi Documento Allegato
              </a>
@@ -120,7 +138,7 @@ export default function GestisciPage() {
     const { data: contributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
 
     const [batchInfo, setBatchInfo] = useState<any>(null);
-    const [steps, setSteps] = useState<any[]>(>([]);
+    const [steps, setSteps] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { mutate: sendTransaction, isPending } = useSendTransaction();
     const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
@@ -168,14 +186,7 @@ export default function GestisciPage() {
             <main className="main-content-full">
                 {contributorInfo && <GestisciPageHeader contributorInfo={contributorInfo} />}
                 
-                {/* MODIFICA: Pulsante riposizionato qui per coerenza con la pagina azienda */}
-                <div style={{ margin: '1rem 0' }}>
-                    <Link to="/">
-                        <button className="web3-button" style={{ padding: '1rem 2rem', fontSize: '1.25rem', fontWeight: 'bold' }}>
-                            ← Torna alla Pagina Principale
-                        </button>
-                    </Link>
-                </div>
+                {/* MODIFICA: Il pulsante "Torna alla pagina principale" è stato spostato dentro GestisciPageHeader, quindi questo blocco non serve più */}
 
                 {isLoading ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento dati iscrizione...</p> : 
                     <>
