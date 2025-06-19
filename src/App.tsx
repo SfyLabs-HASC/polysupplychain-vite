@@ -1,26 +1,22 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+// Nota: NON importiamo più BrowserRouter qui
+import { Routes, Route } from 'react-router-dom';
 
 // Importiamo tutte le pagine necessarie
-import HomePage from './pages/HomePage'; // La vera Home Page
-import AziendaPage from './pages/AziendaPage'; // La dashboard dell'azienda
-import GestisciPage from './pages/GestisciPage'; 
+import HomePage from './pages/HomePage';
+import AziendaPage from './pages/AziendaPage';
+// Uso la 'g' minuscola perché sappiamo che su GitHub il file si chiama così
+import GestisciPage from './pages/gestisciPage'; 
 import './App.css';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* La rotta "/" ora punta alla HomePage */}
-        <Route path="/" element={<HomePage />} />
-        
-        {/* La dashboard dell'azienda ora ha il suo percorso dedicato */}
-        <Route path="/dashboard" element={<AziendaPage />} />
-
-        {/* La pagina di gestione rimane invariata */}
-        <Route path="/gestisci/:batchId" element={<GestisciPage />} />
-      </Routes>
-    </BrowserRouter>
+    // NESSUN <BrowserRouter> qui intorno. Solo le <Routes>.
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/dashboard" element={<AziendaPage />} />
+      <Route path="/gestisci/:batchId" element={<GestisciPage />} />
+    </Routes>
   );
 }
 
