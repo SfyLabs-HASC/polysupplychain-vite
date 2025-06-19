@@ -1,17 +1,18 @@
-// FILE: src/App.tsx
-// Gestisce la navigazione tra le diverse pagine del sito.
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import AziendaPage from './pages/AziendaPage';
+import GestisciPage from './pages/GestisciPage'; // La nuova pagina che creeremo
+import './App.css';
 
-import { Routes, Route } from "react-router-dom";
-import HomePage from "./pages/HomePage";
-import AziendaPage from "./pages/AziendaPage";
-import AdminPage from "./pages/AdminPage";
-
-export default function App() {
+function App() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/azienda" element={<AziendaPage />} />
-      <Route path="/admin" element={<AdminPage />} />
-    </Routes>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<AziendaPage />} />
+        <Route path="/gestisci/:batchId" element={<GestisciPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+export default App;

@@ -2,6 +2,8 @@
 // VERSIONE CON CORREZIONI GRAFICHE AL POPUP E AL FLUSSO DI CARICAMENTO
 
 import React, { useState, useEffect, useRef } from 'react';
+// --- 1. MODIFICA: Importiamo Link per la navigazione ---
+import { Link } from 'react-router-dom';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
 import { createThirdwebClient, getContract, prepareContractCall, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
@@ -20,11 +22,17 @@ const contract = getContract({
 
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 
+// --- 2. MODIFICA: Il pulsante "Gestisci" ora è un Link che porta alla pagina di gestione ---
 const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
     const formatDate = (dateStr: string | undefined) => !dateStr || dateStr.split('-').length !== 3 ? '/' : dateStr.split('-').reverse().join('/');
-    return (<><tr><td>{localId}</td><td><span className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || '/'}</span></td><td>{formatDate(batch.date)}</td><td>{batch.location || '/'}</td><td>{stepCount !== undefined ? stepCount.toString() : '/'}</td><td>{batch.isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>}</td><td><button className="web3-button" onClick={() => alert('Pronto per il Passaggio 2!')}>Gestisci</button></td></tr>{showDescription && (<div className="modal-overlay" onClick={() => setShowDescription(false)}><div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div><div className="modal-body"><p>{batch.description || 'Nessuna descrizione fornita.'}</p></div><div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div></div></div>)}</>);
+    return (<><tr><td>{localId}</td><td><span className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || '/'}</span></td><td>{formatDate(batch.date)}</td><td>{batch.location || '/'}</td><td>{stepCount !== undefined ? stepCount.toString() : '/'}</td><td>{batch.isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>}</td>
+    <td>
+        <Link to={`/gestisci/${batch.batchId}`} className="web3-button">
+            Gestisci
+        </Link>
+    </td></tr>{showDescription && (<div className="modal-overlay" onClick={() => setShowDescription(false)}><div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div><div className="modal-body"><p>{batch.description || 'Nessuna descrizione fornita.'}</p></div><div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div></div></div>)}</>);
 };
 
 interface BatchData { id: string; batchId: bigint; name: string; description: string; date: string; location: string; isClosed: boolean; }
@@ -106,7 +114,6 @@ export default function AziendaPage() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
     
     const handleInitializeBatch = async () => {
-        // --- [MODIFICA] Chiudiamo il modal del wizard per mostrare quello di loading ---
         setModal(null);
 
         if (!formData.name.trim()) {
@@ -203,15 +210,14 @@ export default function AziendaPage() {
     
     const isProcessing = loadingMessage !== '' || isPending;
     
-    // --- [MODIFICA] Stile del box di aiuto con sfondo scuro ---
     const helpTextStyle = {
-        backgroundColor: '#343a40', // Grigio scuro
+        backgroundColor: '#343a40',
         border: '1px solid #495057',
         borderRadius: '8px',
         padding: '16px',
         marginTop: '16px',
         fontSize: '0.9rem',
-        color: '#f8f9fa' // Testo chiaro
+        color: '#f8f9fa'
     };
 
     return (
@@ -300,6 +306,8 @@ export default function AziendaPage() {
                                     </div>
                                      <div style={helpTextStyle}>
                                         <p>Carica un’immagine rappresentativa del prodotto, lotto, contratto, etc. Rispetta i formati e i limiti di peso.</p>
+                                        {/* --- 3. MODIFICA: Aggiunta nota sul formato immagine --- */}
+                                        <p style={{marginTop: '10px'}}><strong>Consiglio:</strong> Per una visualizzazione ottimale, usa un'immagine quadrata (formato 1:1).</p>
                                     </div>
                                 </div>
                             )}
@@ -319,7 +327,6 @@ export default function AziendaPage() {
                 </div> 
             )}
             
-            {/* --- [MODIFICA] Logica di visualizzazione dei popup di stato --- */}
             {isProcessing && (
                 <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />
             )}
