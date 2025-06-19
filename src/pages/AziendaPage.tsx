@@ -1,13 +1,16 @@
-// FILE: src/pages/GestisciPage.tsx
-// (CODICE CON CORREZIONI A STATO, HEADER E CONTEGGIO EVENTI)
+// FILE: src/pages/AziendaPage.tsx
+// VERSIONE CON CORREZIONI GRAFICHE AL POPUP E AL FLUSSO DI CARICAMENTO
 
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+// --- 1. MODIFICA: Importiamo Link per la navigazione ---
+import { Link } from 'react-router-dom';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
 import { createThirdwebClient, getContract, prepareContractCall, readContract } from 'thirdweb';
 import { polygon } from 'thirdweb/chains';
+import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
-import '../App.css';
+import '../App.css'; 
+
 import TransactionStatusModal from '../components/TransactionStatusModal';
 
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
@@ -17,291 +20,322 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
-const EventoCard = ({ eventoInfo }: { eventoInfo: any }) => (
-    <div className="card" style={{backgroundColor: '#343a40', color: '#f8f9fa', marginTop: '1rem'}}>
-        <h4>{eventoInfo[0]}</h4>
-        <p>{eventoInfo[1]}</p>
-        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#adb5bd'}}>
-            <span>Luogo: {eventoInfo[3]}</span>
-            <span>Data: {eventoInfo[2]}</span>
-        </div>
-        {eventoInfo[4] && eventoInfo[4] !== "N/A" && (
-             <a href={`https://musical-emerald-partridge.myfilebase.com/ipfs/${eventoInfo[4]}`} target="_blank" rel="noopener noreferrer" className="link-button" style={{marginTop: '1rem'}}>
-                 Vedi Documento Allegato
-             </a>
-        )}
-    </div>
-);
+const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 
-const AggiungiEventoModal = ({ batchId, contributorName, onClose, onSuccess }: { batchId: bigint, contributorName: string, onClose: () => void, onSuccess: () => void }) => {
-    const [currentStep, setCurrentStep] = useState(1);
-    const [formData, setFormData] = useState({ eventName: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [loadingMessage, setLoadingMessage] = useState('');
-    const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
-    const { mutate: sendTransaction, isPending } = useSendTransaction();
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({...prev, [name]: value}));
-    };
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
-
-    const handleAddEvento = async () => {
-        let attachmentsIpfsHash = "N/A";
-        if (selectedFile) {
-            const MAX_SIZE_MB = 5;
-            const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-            const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/plain', 'text/csv'];
-            
-            if (selectedFile.size > MAX_SIZE_BYTES) {
-                setTxResult({ status: 'error', message: `Il file è troppo grande. Limite massimo: ${MAX_SIZE_MB} MB.` }); return;
-            }
-            if (!ALLOWED_FORMATS.includes(selectedFile.type)) {
-                setTxResult({ status: 'error', message: 'Formato file non supportato.' }); return;
-            }
-            setLoadingMessage('Caricamento allegato, attendi...');
-            try {
-                const body = new FormData();
-                body.append('file', selectedFile);
-                body.append('companyName', contributorName);
-                const response = await fetch('/api/upload', { method: 'POST', body });
-                if (!response.ok) throw new Error((await response.json()).details || 'Errore dal server di upload.');
-                const { cid } = await response.json();
-                if (!cid) throw new Error("CID non ricevuto dalla nostra API.");
-                attachmentsIpfsHash = cid;
-            } catch (error: any) {
-                setTxResult({ status: 'error', message: `Errore caricamento: ${error.message}` });
-                setLoadingMessage(''); return;
-            }
-        }
-
-        setLoadingMessage('Transazione in corso, attendi...');
-        const transaction = prepareContractCall({ 
-            contract, abi, 
-            method: "function addStepToBatch(uint256 _batchId, string _eventName, string _description, string _date, string _location, string _attachmentsIpfsHash)", 
-            params: [batchId, formData.eventName, formData.description, formData.date, formData.location, attachmentsIpfsHash] 
-        });
-
-        sendTransaction(transaction, { 
-            onSuccess: () => { setLoadingMessage(''); onSuccess(); },
-            onError: (err) => { setLoadingMessage(''); setTxResult({ status: 'error', message: err.message }); } 
-        });
-    };
-    
-    const handleConfirmAndSubmit = () => {
-        if (window.confirm("Vuoi confermare tutti i dati inseriti e procedere scrivere l'evento?")) {
-            handleAddEvento();
-        }
-    };
-
-    const handleNextStep = () => {
-        if (currentStep === 1 && !formData.eventName.trim()) {
-            alert("Il campo 'Nome Evento' è obbligatorio per procedere."); return;
-        }
-        setCurrentStep(prev => prev + 1);
-    };
-
-    const helpTextStyle = { backgroundColor: '#343a40', border: '1px solid #495057', borderRadius: '8px', padding: '16px', marginTop: '16px', fontSize: '0.9rem', color: '#f8f9fa' };
-    const isProcessing = loadingMessage !== '' || isPending;
-
-    return (
-        <>
-            <div className="modal-overlay" onClick={onClose}>
-                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                    <div className="modal-header"><h2>Aggiungi Nuovo Evento ({currentStep}/5)</h2></div>
-                    <div className="modal-body" style={{ minHeight: '350px' }}>
-                        {currentStep === 1 && <div> <div className="form-group"> <label>Nome Evento <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label> <input type="text" name="eventName" value={formData.eventName} onChange={handleInputChange} className="form-input" maxLength={100} /> <small className="char-counter">{formData.eventName.length} / 100</small> </div> <div style={helpTextStyle}><p>Inserisci un nome identificativo per questo evento, può essere un'operazione specifica (come "Raccolta", "Trasformazione", "Spedizione"), un controllo di qualità, un passaggio logistico, un aggiornamento contrattuale o qualsiasi attività rilevante per la tracciabilità del prodotto. Scegli un nome descrittivo che aiuti a comprendere subito di cosa si tratta.</p></div> </div>}
-                        {currentStep === 2 && <div> <div className="form-group"> <label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <textarea name="description" value={formData.description} onChange={handleInputChange} className="form-input" rows={4} maxLength={500}></textarea> <small className="char-counter">{formData.description.length} / 500</small> </div> <div style={helpTextStyle}><p>Fornisci una breve descrizione di cosa è avvenuto in questo evento: specifica le attività svolte, i dettagli rilevanti, eventuali soggetti coinvolti o note tecniche utili per la tracciabilità.</p></div> </div>}
-                        {currentStep === 3 && <div> <div className="form-group"> <label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="form-input" maxLength={100} /> <small className="char-counter">{formData.location.length} / 100</small> </div> <div style={helpTextStyle}><p>Inserisci il luogo dove si è svolto questo evento (es. un magazzino, un laboratorio, un punto vendita, ecc.).</p></div> </div>}
-                        {currentStep === 4 && <div> <div className="form-group"> <label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" max={new Date().toISOString().split('T')[0]} /> </div> <div style={helpTextStyle}><p>Inserisci la data in cui si è verificato l'evento.</p></div> </div>}
-                        {currentStep === 5 && <div> <div className="form-group"> <label>Carica Allegato <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="file" name="attachment" onChange={handleFileChange} className="form-input" accept=".jpg, .jpeg, .png, .webp, .pdf, .docx, .xlsx, .txt, .csv"/> {selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>} <small style={{marginTop: '4px'}}>Formati supportati. Max: 5 MB.</small> </div> <div style={helpTextStyle}><p>Allega un documento o un'immagine relativa a questo evento (es. bolla di trasporto, certificato di analisi, foto del prodotto, ecc.).</p></div> </div>}
-                    </div>
-                    <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-                        <div>{currentStep > 1 && <button onClick={() => setCurrentStep(p => p - 1)} className="web3-button secondary">Indietro</button>}</div>
-                        <div>
-                            <button onClick={onClose} className="web3-button secondary">Chiudi</button>
-                            {currentStep < 5 && <button onClick={handleNextStep} className="web3-button">Avanti</button>}
-                            {currentStep === 5 && <button onClick={handleConfirmAndSubmit} disabled={isProcessing} className="web3-button">{isProcessing ? "..." : "Conferma"}</button>}
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {isProcessing && <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />}
-            {txResult && <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => setTxResult(null)} />}
-        </>
-    );
+// --- 2. MODIFICA: Il pulsante "Gestisci" ora è un Link che porta alla pagina di gestione ---
+const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
+    const [showDescription, setShowDescription] = useState(false);
+    const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
+    const formatDate = (dateStr: string | undefined) => !dateStr || dateStr.split('-').length !== 3 ? '/' : dateStr.split('-').reverse().join('/');
+    return (<><tr><td>{localId}</td><td><span className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || '/'}</span></td><td>{formatDate(batch.date)}</td><td>{batch.location || '/'}</td><td>{stepCount !== undefined ? stepCount.toString() : '/'}</td><td>{batch.isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>}</td>
+    <td>
+        <Link to={`/gestisci/${batch.batchId}`} className="web3-button">
+            Gestisci
+        </Link>
+    </td></tr>{showDescription && (<div className="modal-overlay" onClick={() => setShowDescription(false)}><div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div><div className="modal-body"><p>{batch.description || 'Nessuna descrizione fornita.'}</p></div><div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div></div></div>)}</>);
 };
 
-const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
-    const companyName = contributorInfo?.[0] || 'Azienda';
-    const credits = contributorInfo?.[1]?.toString() || '...';
+interface BatchData { id: string; batchId: bigint; name: string; description: string; date: string; location: string; isClosed: boolean; }
+const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLocationFilter, statusFilter, setStatusFilter }: any) => {
+    const [currentPage, setCurrentPage] = useState(1); const [itemsToShow, setItemsToShow] = useState(10); const MAX_PER_PAGE = 30; const totalPages = Math.max(1, Math.ceil(batches.length / MAX_PER_PAGE)); const startIndex = (currentPage - 1) * MAX_PER_PAGE; const itemsOnCurrentPage = batches.slice(startIndex, startIndex + MAX_PER_PAGE); const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow); useEffect(() => { setCurrentPage(1); setItemsToShow(10); }, [batches]); const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE)); const handlePageChange = (page: number) => { if (page < 1 || page > totalPages) return; setCurrentPage(page); setItemsToShow(10); };
+    return (<div className="table-container"><table className="company-table"><thead><tr><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr><tr className="filter-row"><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th><th></th><th><input type="text" placeholder="Filtra..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th><th></th><th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th><th></th></tr></thead><tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch, index) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody></table><div className="pagination-controls">{itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}<div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div></div></div>);
+};
+
+const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
+    const companyName = contributorInfo[0] || 'Azienda';
+    const credits = contributorInfo[1].toString();
     return (
-        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
             <div>
-                {/* MODIFICA: Aumentata grandezza del font */}
-                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>{companyName}</h2>
+                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, {companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
                     <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
                 </div>
             </div>
-            <div>
-                <Link to="/">
-                    <button style={{backgroundColor: '#6A5ACD', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold'}}>
-                        ← Torna alla Pagina Principale
-                    </button>
-                </Link>
-            </div>
+            <div className="header-actions"><button className="web3-button large" onClick={onNewInscriptionClick}>Nuova Iscrizione</button></div>
         </div>
     );
 };
 
-const ImagePlaceholder = () => ( <div style={{width:'150px',height:'150px',flexShrink:0,backgroundColor:'#f0f0f0',border:'1px solid #ddd',borderRadius:'8px',display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',color:'#a0a0a0',textAlign:'center'}}><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="currentColor" viewBox="0 0 16 16"><path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/><path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/></svg><div style={{fontSize:'0.8rem',marginTop:'5px',fontWeight:'bold'}}>NO IMAGE<br/>AVAILABLE</div></div> );
-
-const BatchSummaryCard = ({ batchInfo, eventCount, onAddEventoClick, onFinalize }: { batchInfo: any, eventCount: number, onAddEventoClick: () => void, onFinalize: () => void }) => {
-    if(!batchInfo) return null;
-    const defaultImageUrl="https://musical-emerald-partridge.myfilebase.com/ipfs/QmNUGt9nxmkV27qF56jFAG9FUPABvGww5TTW9R9vh2TdvB";
-    const imageUrl=batchInfo[7]&&batchInfo[7]!=="N/A"?`https://musical-emerald-partridge.myfilebase.com/ipfs/${batchInfo[7]}`:defaultImageUrl;
-    const isPlaceholder=imageUrl===defaultImageUrl;
-    const isClosed=batchInfo[8];
-
-    // MODIFICA: Stile per il pallino colorato dello stato
-    const statusIndicatorStyle = {
-        height: '12px',
-        width: '12px',
-        backgroundColor: isClosed ? '#28a745' : '#ffc107', // Verde per chiuso, Giallo per aperto
-        borderRadius: '50%',
-        display: 'inline-block',
-        marginRight: '8px',
-    };
-
-    return(
-        <div className="card" style={{marginTop:'1rem',backgroundColor:'transparent',border:'1px solid #8bc4a8',padding:'1.5rem',display:'flex',alignItems:'center',gap:'2rem'}}>
-            {isPlaceholder?<ImagePlaceholder />:<img src={imageUrl} alt="Immagine batch" style={{width:'150px',height:'150px',objectFit:'cover',borderRadius:'8px',flexShrink:0}} />}
-            <div style={{flex:'1 1 40%',minWidth:0}}>
-                <h3 style={{fontWeight:'bold',fontSize:'1.75rem',margin:'0 0 0.5rem 0',color:'white'}}>{batchInfo[3]}</h3>
-                <p style={{margin:0,color:'#ced4da',fontSize:'0.95rem'}}>{batchInfo[4]||'Nessuna descrizione fornita.'}</p>
-            </div>
-            <div style={{flex:'1 1 25%',color:'#ced4da',textAlign:'left'}}>
-                {/* MODIFICA: Aggiunto indicatore colorato e usato eventCount */}
-                <p style={{margin:'0.3rem 0', display: 'flex', alignItems: 'center'}}>
-                    <span style={statusIndicatorStyle}></span>
-                    <strong>Stato Iscrizione:</strong> <span style={{fontWeight:'bold', marginLeft: '4px'}}>{isClosed?'Chiuso':'Aperto'}</span>
-                </p>
-                <p style={{margin:'0.3rem 0'}}><strong>Luogo:</strong> {batchInfo[6]||'N/D'}</p>
-                <p style={{margin:'0.3rem 0'}}><strong>Data:</strong> {batchInfo[5]||'N/D'}</p>
-                <p style={{margin:'0.3rem 0'}}><strong>N° Eventi:</strong> {eventCount}</p>
-            </div>
-            {!isClosed&&(
-                <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-                    <button onClick={onAddEventoClick} style={{backgroundColor:'#6A5ACD',color:'white',border:'none',padding:'12px 24px',borderRadius:'8px',cursor:'pointer',fontSize:'1rem',fontWeight:'bold',width:'200px'}}>Aggiungi Evento</button>
-                    <button onClick={onFinalize} style={{backgroundColor:'#495057',color:'#ced4da',border:'none',padding:'12px 24px',borderRadius:'8px',cursor:'pointer',fontSize:'1rem',fontWeight:'bold',width:'200px'}}>Finalizza Iscrizione</button>
-                </div>
-            )}
-        </div>
-    );
-};
-
-export default function GestisciPage() {
-    const { batchId } = useParams<{ batchId: string }>();
+export default function AziendaPage() {
     const account = useActiveAccount();
-    const { data: contributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined });
+    const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
+    
+    const prevAccount = useRef(account);
+    useEffect(() => {
+        if (prevAccount.current && !account) {
+            window.location.href = '/';
+        }
+        prevAccount.current = account;
+    }, [account]);
 
-    const [batchInfo, setBatchInfo] = useState<any>(null);
-    const [eventi, setEventi] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const { mutate: sendTransaction, isPending: isFinalizing } = useSendTransaction();
+    const { mutate: sendTransaction, isPending } = useSendTransaction();
+    const [modal, setModal] = useState<'init' | null>(null);
+    const [formData, setFormData] = useState({ name: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [allBatches, setAllBatches] = useState<BatchData[]>([]);
+    const [filteredBatches, setFilteredBatches] = useState<BatchData[]>([]);
+    const [isLoadingBatches, setIsLoadingBatches] = useState(true);
+    
+    const [nameFilter, setNameFilter] = useState('');
+    const [locationFilter, setLocationFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const today = new Date().toISOString().split('T')[0];
+    
+    const [loadingMessage, setLoadingMessage] = useState('');
+    const [currentStep, setCurrentStep] = useState(1);
 
-    // MODIFICA: Hook dedicato per leggere il conteggio degli eventi in modo affidabile
-    const { data: eventCount, refetch: refetchEventCount } = useReadContract({
-        contract,
-        method: "function getBatchStepCount(uint256)",
-        params: batchId ? [BigInt(batchId)] : undefined,
-        queryOptions: { enabled: !!batchId }
-    });
-
-    const fetchBatchData = async () => {
-        if (!batchId) return;
-        setIsLoading(true);
+    const fetchAllBatches = async () => {
+        if (!account?.address) return;
+        setIsLoadingBatches(true);
         try {
-            const id = BigInt(batchId);
-            const info = await readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] });
-            setBatchInfo(info);
-            
-            // La logica per caricare i dettagli degli eventi rimane, ma il conteggio ora è gestito dall'hook
-            const count = await readContract({ contract, abi, method: "function getBatchStepCount(uint256) view returns (uint256)", params: [id] }) as bigint;
-            const stepsPromises = Array.from({ length: Number(count) }, (_, i) => 
-                readContract({ contract, abi, method: "function getStepDetails(uint256, uint256) view returns (string, string, string, string, string)", params: [id, BigInt(i)] })
-            );
-            const stepsDetails = await Promise.all(stepsPromises);
-            setEventi(stepsDetails.reverse()); // Mostra i più recenti per primi
-        } catch (error) { console.error("Errore nel caricare i dati del batch:", error); } 
-        finally { setIsLoading(false); }
+            const batchIds = await readContract({ contract, abi, method: "function getBatchesByContributor(address) view returns (uint256[])", params: [account.address] }) as bigint[];
+            const batchDataPromises = batchIds.map(id => readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] }).then(info => ({ id: id.toString(), batchId: id, name: info[3], description: info[4], date: info[5], location: info[6], isClosed: info[8] })));
+            const results = await Promise.all(batchDataPromises);
+            setAllBatches(results);
+        } catch (error) { console.error("Errore nel caricare i lotti:", error); setAllBatches([]); } 
+        finally { setIsLoadingBatches(false); }
     };
 
-    useEffect(() => { fetchBatchData(); }, [batchId]);
+    useEffect(() => { fetchAllBatches(); }, [account?.address]);
+
+    useEffect(() => {
+        let tempBatches = [...allBatches];
+        if (nameFilter) { tempBatches = tempBatches.filter(b => b.name.toLowerCase().includes(nameFilter.toLowerCase())); }
+        if (locationFilter) { tempBatches = tempBatches.filter(b => b.location.toLowerCase().includes(locationFilter.toLowerCase())); }
+        if (statusFilter !== 'all') { const isOpen = statusFilter === 'open'; tempBatches = tempBatches.filter(b => !b.isClosed === isOpen); }
+        tempBatches.sort((a, b) => Number(b.batchId - a.batchId));
+        setFilteredBatches(tempBatches);
+    }, [nameFilter, locationFilter, statusFilter, allBatches]);
     
-    const handleFinalize = () => {
-        const confirmationMessage = "Conferma finalizzazione iscrizione\n\nSei sicuro di voler finalizzare questa iscrizione?\nDopo questa operazione non potrai più aggiungere eventi o modificare la filiera.\nL’iscrizione sarà considerata completa e chiusa.";
-        if (!batchId || !window.confirm(confirmationMessage)) return;
-        
-        const transaction = prepareContractCall({ contract, abi, method: "function closeBatch(uint256 _batchId)", params: [BigInt(batchId)] });
-        sendTransaction(transaction, {
-            onSuccess: () => { setTxResult({ status: 'success', message: 'Iscrizione finalizzata con successo!' }); fetchBatchData(); },
-            onError: (err) => setTxResult({ status: 'error', message: `Errore: ${err.message}` })
+    const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
+    
+    const handleInitializeBatch = async () => {
+        setModal(null);
+
+        if (!formData.name.trim()) {
+            setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' });
+            return;
+        }
+        let imageIpfsHash = "N/A";
+        if (selectedFile) {
+            const MAX_SIZE_MB = 5;
+            const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+            const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
+            if (selectedFile.size > MAX_SIZE_BYTES) {
+                setTxResult({ status: 'error', message: `Il file è troppo grande. Limite massimo: ${MAX_SIZE_MB} MB.` });
+                return;
+            }
+            if (!ALLOWED_FORMATS.includes(selectedFile.type)) {
+                setTxResult({ status: 'error', message: 'Formato immagine non supportato.' });
+                return;
+            }
+            setLoadingMessage('Caricamento Immagine, attendi...');
+            try {
+                const body = new FormData();
+                body.append('file', selectedFile);
+                body.append('companyName', contributorData?.[0] || 'AziendaGenerica');
+                const response = await fetch('/api/upload', { method: 'POST', body: body });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.details || 'Errore dal server di upload.');
+                }
+                const { cid } = await response.json();
+                if (!cid) { throw new Error("CID non ricevuto dalla nostra API."); }
+                imageIpfsHash = cid;
+            } catch (error: any) {
+                console.error("Errore durante la chiamata all'API di upload:", error);
+                setTxResult({ status: 'error', message: `Errore caricamento: ${error.message}` });
+                setLoadingMessage('');
+                return;
+            }
+        }
+        setLoadingMessage('Transazione in corso, attendi...');
+        const transaction = prepareContractCall({ 
+            contract, abi, 
+            method: "function initializeBatch(string,string,string,string,string)", 
+            params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] 
+        });
+        sendTransaction(transaction, { 
+            onSuccess: async () => { 
+                setTxResult({ status: 'success', message: 'Iscrizione creata con successo!' });
+                setLoadingMessage('');
+                await fetchAllBatches(); 
+                await refetchContributorInfo();
+            },
+            onError: (err) => { 
+                setTxResult({ status: 'error', message: err.message.toLowerCase().includes("insufficient funds") ? "Crediti Insufficienti, Ricarica" : "Errore nella transazione." }); 
+                setLoadingMessage('');
+            } 
         });
     };
     
-    const handleAddEventoSuccess = () => {
-        setTxResult({ status: 'success', message: 'Evento aggiunto con successo!' });
-        setIsModalOpen(false);
-        fetchBatchData();
-        refetchEventCount(); // MODIFICA: Forza l'aggiornamento del conteggio eventi
+    const handleCloseModal = () => {
+        setModal(null);
+        setCurrentStep(1);
+        setFormData({ name: "", description: "", date: new Date().toISOString().split('T')[0], location: "" });
+        setSelectedFile(null);
+    };
+
+    const handleNextStep = () => {
+        if (currentStep === 1 && !formData.name.trim()) {
+            alert("Il campo 'Nome Iscrizione' è obbligatorio per procedere.");
+            return;
+        }
+        setCurrentStep(prev => prev + 1);
+    };
+
+    const handlePrevStep = () => {
+        setCurrentStep(prev => prev - 1);
+    };
+    
+    if (!account) { return <div className='login-container'><ConnectButton client={client} chain={polygon} accountAbstraction={{ chain: polygon, sponsorGas: true }} wallets={[inAppWallet()]} connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }} /></div>; }
+    
+    const renderDashboardContent = () => { 
+        if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>; 
+        const isActive = contributorData?.[2] ?? false; 
+        if (!isActive) return <RegistrationForm />; 
+        return (
+            <> 
+                <DashboardHeader contributorInfo={contributorData!} onNewInscriptionClick={() => { setModal('init'); setCurrentStep(1); }} /> 
+                {isLoadingBatches ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento iscrizioni...</p> : 
+                    <BatchTable batches={filteredBatches} nameFilter={nameFilter} setNameFilter={setNameFilter} locationFilter={locationFilter} setLocationFilter={setLocationFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter}/>
+                } 
+            </>
+        ); 
+    };
+    
+    const isProcessing = loadingMessage !== '' || isPending;
+    
+    const helpTextStyle = {
+        backgroundColor: '#343a40',
+        border: '1px solid #495057',
+        borderRadius: '8px',
+        padding: '16px',
+        marginTop: '16px',
+        fontSize: '0.9rem',
+        color: '#f8f9fa'
     };
 
     return (
         <div className="app-container-full" style={{ padding: '0 2rem' }}>
-            <header className="main-header-bar">
-                <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}><div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div></Link>
+            <header className="main-header-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div>
                 <div className="wallet-button-container"><ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div>
             </header>
-            
             <main className="main-content-full">
-                {contributorInfo && <GestisciPageHeader contributorInfo={contributorInfo} />}
-                
-                {isLoading ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento dati iscrizione...</p> : 
-                    <>
-                        <BatchSummaryCard batchInfo={batchInfo} eventCount={Number(eventCount) || 0} onAddEventoClick={() => setIsModalOpen(true)} onFinalize={handleFinalize} />
-                        
-                        <div style={{marginTop: '2rem'}}>
-                            <h4>Eventi dell'Iscrizione</h4>
-                            {eventi.length === 0 ? (
-                                <div style={{textAlign: 'center', padding: '2rem', color: '#adb5bd'}}>
-                                    <span style={{fontSize: '3rem', color: '#dc3545', fontWeight: 'bold', lineHeight: '1'}}>×</span>
-                                    <p>Nessun Evento aggiunto a questa iscrizione.</p>
-                                </div>
-                            ) : (
-                                eventi.map((evento, index) => <EventoCard key={index} eventoInfo={evento} />)
-                            )}
-                        </div>
-                    </>
-                }
+                {renderDashboardContent()}
             </main>
+            
+            {modal === 'init' && ( 
+                <div className="modal-overlay" onClick={handleCloseModal}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header"><h2>Nuova Iscrizione ({currentStep}/5)</h2></div>
+                        <div className="modal-body" style={{ minHeight: '350px' }}>
+                            
+                            {currentStep === 1 && (
+                                <div>
+                                    <div className="form-group">
+                                        <label>Nome Iscrizione <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label>
+                                        <input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={100} />
+                                        <small className="char-counter">{formData.name.length} / 100</small>
+                                    </div>
+                                    <div style={helpTextStyle}>
+                                        <p><strong>ℹ️ Come scegliere il Nome Iscrizione</strong></p>
+                                        <p>Il Nome Iscrizione è un'etichetta descrittiva che ti aiuta a identificare in modo chiaro ciò che stai registrando on-chain. Ad esempio:</p>
+                                        <ul style={{textAlign: 'left', paddingLeft: '20px'}}>
+                                            <li>Il nome di un prodotto o varietà: <em>Pomodori San Marzano 2025</em></li>
+                                            <li>Il numero di lotto: <em>Lotto LT1025 – Olio EVO 3L</em></li>
+                                            <li>Il nome di un contratto: <em>Contratto fornitura COOP – Aprile 2025</em></li>
+                                            <li>Una certificazione o audit: <em>Certificazione Bio ICEA 2025</em></li>
+                                            <li>Un riferimento amministrativo: <em>Ordine n.778 – Cliente NordItalia</em></li>
+                                        </ul>
+                                        <p style={{marginTop: '1rem'}}><strong>📌 Consiglio:</strong> scegli un nome breve ma significativo, che ti aiuti a ritrovare facilmente l’iscrizione anche dopo mesi o anni.</p>
+                                    </div>
+                                </div>
+                            )}
 
-            {isModalOpen && batchId && (
-                <AggiungiEventoModal 
-                    batchId={BigInt(batchId)}
-                    contributorName={contributorInfo?.[0] || 'AziendaGenerica'}
-                    onClose={() => setIsModalOpen(false)} 
-                    onSuccess={handleAddEventoSuccess} 
-                />
+                            {currentStep === 2 && (
+                                <div>
+                                    <div className="form-group">
+                                        <label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
+                                        <textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea>
+                                        <small className="char-counter">{formData.description.length} / 500</small>
+                                    </div>
+                                     <div style={helpTextStyle}>
+                                        <p>Inserisci una descrizione del prodotto, lotto, contratto o altro elemento principale. Fornisci tutte le informazioni essenziali per identificarlo chiaramente nella filiera o nel contesto dell’iscrizione.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentStep === 3 && (
+                                <div>
+                                    <div className="form-group">
+                                        <label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
+                                        <input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} />
+                                        <small className="char-counter">{formData.location.length} / 100</small>
+                                    </div>
+                                    <div style={helpTextStyle}>
+                                        <p>Inserisci il luogo di origine o di produzione del prodotto o lotto. Può essere una città, una regione, un'azienda agricola o uno stabilimento specifico per identificare con precisione dove è stato realizzato.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentStep === 4 && (
+                                <div>
+                                    <div className="form-group">
+                                        <label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
+                                        <input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} />
+                                    </div>
+                                     <div style={helpTextStyle}>
+                                        <p>Inserisci una data, puoi utilizzare il giorno attuale o una data precedente alla conferma di questa Iscrizione.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentStep === 5 && (
+                                <div>
+                                    <div className="form-group">
+                                        <label>Immagine <span style={{color: '#6c757d'}}>Non obbligatorio</span></label>
+                                        <input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/webp"/>
+                                        {selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}
+                                        <small style={{marginTop: '4px'}}>Formati: PNG, JPG, JPEG, WEBP. Max: 5 MB.</small>
+                                    </div>
+                                     <div style={helpTextStyle}>
+                                        <p>Carica un’immagine rappresentativa del prodotto, lotto, contratto, etc. Rispetta i formati e i limiti di peso.</p>
+                                        {/* --- 3. MODIFICA: Aggiunta nota sul formato immagine --- */}
+                                        <p style={{marginTop: '10px'}}><strong>Consiglio:</strong> Per una visualizzazione ottimale, usa un'immagine quadrata (formato 1:1).</p>
+                                    </div>
+                                </div>
+                            )}
+
+                        </div>
+                        <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+                            <div>
+                                {currentStep > 1 && <button onClick={handlePrevStep} className="web3-button secondary">Indietro</button>}
+                            </div>
+                            <div>
+                                <button onClick={handleCloseModal} className="web3-button secondary">Chiudi</button>
+                                {currentStep < 5 && <button onClick={handleNextStep} className="web3-button">Avanti</button>}
+                                {currentStep === 5 && <button onClick={handleInitializeBatch} disabled={isProcessing} className="web3-button">{isProcessing ? "..." : "Conferma"}</button>}
+                            </div>
+                        </div>
+                    </div>
+                </div> 
             )}
             
-            {isFinalizing && <TransactionStatusModal status="loading" message="Finalizzazione in corso..." onClose={() => {}}/>}
-            {txResult && <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => setTxResult(null)} />}
+            {isProcessing && (
+                <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />
+            )}
+            {txResult && (
+                 <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => { 
+                    if (txResult?.status === 'success') { handleCloseModal(); } 
+                    setTxResult(null); 
+                }} />
+            )}
         </div>
     );
 }
