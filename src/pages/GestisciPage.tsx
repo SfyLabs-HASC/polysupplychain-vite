@@ -1,5 +1,5 @@
 // FILE: src/pages/GestisciPage.tsx
-// VERSIONE CON FIX DI SINTASSI NEL BLOCCO DI VISUALIZZAZIONE DEGLI STEP
+// VERSIONE CON FIX DI SINTASSI FINALE NEL BLOCCO 'isLoading'
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -23,7 +23,7 @@ const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     return (
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
             <div>
-                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, {companyName}</h2>
+                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>{companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
                     <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
@@ -144,4 +144,47 @@ export default function GestisciPage() {
             </header>
             <main className="main-content-full">
                 {contributorInfo && <GestisciPageHeader contributorInfo={contributorInfo} />}
-                {isLoading ? <p style={{
+
+                {/* --- MODIFICA DI SINTASSI --- */}
+                {/* Riscritto il blocco per essere più robusto ed evitare errori di build */}
+                {isLoading && (
+                    <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento dati iscrizione...</p>
+                )}
+                {!isLoading && (
+                    <>
+                        <BatchSummaryCard batchInfo={batchInfo} stepCount={steps.length} onAddStep={handleAddStepClick} onFinalize={handleFinalize} />
+                        <div style={{marginTop: '2rem'}}>
+                            <h4>Passaggi dell'Iscrizione</h4>
+                            
+                            {steps.length === 0 && (
+                                <div style={{
+                                    textAlign: 'center',
+                                    padding: '4rem 2rem',
+                                    fontSize: '1.2rem',
+                                    color: '#6c757d',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    minHeight: '200px',
+                                }}>
+                                    <span style={{fontSize: '2.5rem', marginBottom: '1rem'}}>❌</span>
+                                    Nessun Passaggio aggiunto a questa iscrizione.
+                                    {batchInfo && !batchInfo[8] && <p style={{fontSize: '1rem', marginTop: '0.5rem'}}>Aggiungi nuovi passaggi o Finalizza l'iscrizione.</p>}
+                                </div>
+                            )}
+                            {steps.length > 0 && steps.map((step, index) => (
+                                <StepCard key={index} stepInfo={step} />
+                            ))}
+                        </div>
+                    </>
+                )}
+                {/* --- FINE MODIFICA DI SINTASSI --- */}
+
+            </main>
+            {(isPending || txResult) && (
+                <TransactionStatusModal status={isPending ? 'loading' : txResult!.status} message={isPending ? 'Transazione in corso...' : txResult!.message} onClose={() => setTxResult(null)} />
+            )}
+        </div>
+    );
+}
