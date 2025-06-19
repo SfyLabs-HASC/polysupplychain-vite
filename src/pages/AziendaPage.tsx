@@ -1,5 +1,5 @@
 // FILE: src/pages/AziendaPage.tsx
-// VERSIONE FINALE CON ARCHITETTURA API ROUTE
+// VERSIONE CON GATEWAY DEDICATO FILEBASE PER IL TEST
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
@@ -10,7 +10,6 @@ import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css'; 
 
 import TransactionStatusModal from '../components/TransactionStatusModal';
-// La logica S3 è stata spostata nell'API Route, non è più necessaria qui
 
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
 const contract = getContract({ 
@@ -78,6 +77,7 @@ export default function AziendaPage() {
     const today = new Date().toISOString().split('T')[0];
     
     const [loadingMessage, setLoadingMessage] = useState('');
+    const [lastImageCid, setLastImageCid] = useState<string | null>(null);
 
     const fetchAllBatches = async () => {
         if (!account?.address) return;
@@ -105,7 +105,6 @@ export default function AziendaPage() {
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; setFormData(prev => ({...prev, [name]: value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(e.target.files?.[0] || null);
     
-    // --- [MODIFICATO] handleInitializeBatch ora usa l'API Route ---
     const handleInitializeBatch = async () => {
         if (!formData.name.trim()) {
             setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' });
@@ -115,7 +114,6 @@ export default function AziendaPage() {
         let imageIpfsHash = "N/A";
 
         if (selectedFile) {
-            // Validazione file (rimane sul client per una risposta immediata)
             const MAX_SIZE_MB = 5;
             const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
             const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
@@ -135,7 +133,6 @@ export default function AziendaPage() {
                 body.append('file', selectedFile);
                 body.append('companyName', contributorData?.[0] || 'AziendaGenerica');
 
-                // Chiamiamo la nostra API Route invece di S3 direttamente
                 const response = await fetch('/api/upload', {
                     method: 'POST',
                     body: body,
@@ -170,11 +167,30 @@ export default function AziendaPage() {
         });
 
         sendTransaction(transaction, { 
-            onSuccess: () => { 
+            onSuccess: async () => { 
                 setTxResult({ status: 'success', message: 'Iscrizione creata con successo!' });
-                fetchAllBatches(); 
-                refetchContributorInfo(); 
                 setLoadingMessage('');
+                
+                await fetchAllBatches(); 
+                await refetchContributorInfo(); 
+
+                try {
+                    const batchIds = await readContract({ contract, abi, method: "function getBatchesByContributor(address) view returns (uint256[])", params: [account!.address] }) as bigint[];
+                    if (batchIds.length > 0) {
+                        const latestBatchId = batchIds.reduce((max, current) => current > max ? current : max, batchIds[0]);
+                        const info = await readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [latestBatchId] });
+                        
+                        const cidFromContract = info[7]; 
+                        if (cidFromContract && cidFromContract !== "N/A") {
+                            setLastImageCid(cidFromContract);
+                        } else {
+                            setLastImageCid(null);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Errore nel recuperare il CID dell'ultimo lotto:", e);
+                    setLastImageCid(null);
+                }
             },
             onError: (err) => { 
                 setTxResult({ status: 'error', message: err.message.toLowerCase().includes("insufficient funds") ? "Crediti Insufficienti, Ricarica" : "Errore nella transazione." }); 
@@ -210,6 +226,29 @@ export default function AziendaPage() {
             <main className="main-content-full">
                 {renderDashboardContent()}
             </main>
+
+            {lastImageCid && (
+                <div style={{
+                    border: '2px dashed #ccc',
+                    padding: '20px',
+                    marginTop: '40px',
+                    textAlign: 'center'
+                }}>
+                    <h3>Immagine dell'Ultima Iscrizione (Test di Debug)</h3>
+                    {/* --- [MODIFICA] Utilizziamo il tuo gateway dedicato --- */}
+                    <img
+                        src={`https://musical-emerald-partridge.myfilebase.com/ipfs/${lastImageCid}`}
+                        alt="Immagine dell'ultima iscrizione caricata da IPFS"
+                        style={{ maxWidth: '100%', maxHeight: '400px', marginTop: '10px', border: '1px solid #ddd' }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; alert('Errore nel caricare l\'immagine dal gateway IPFS.'); }}
+                    />
+                    <p style={{ marginTop: '15px', wordBreak: 'break-all' }}>
+                        <strong>CID recuperato dalla blockchain:</strong> {lastImageCid}
+                    </p>
+                </div>
+            )}
+
+
             {modal === 'init' && ( <div className="modal-overlay" onClick={() => setModal(null)}><div className="modal-content" onClick={(e) => e.stopPropagation()}><div className="modal-header"><h2>Nuova Iscrizione</h2></div><div className="modal-body"><div className="form-group"><label>Nome Iscrizione *</label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={50} /><small className="char-counter">{formData.name.length} / 50</small></div><div className="form-group"><label>Descrizione</label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div><div className="form-group"><label>Luogo</label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div><div className="form-group"><label>Data</label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div>
             <div className="form-group"><label>Immagine</label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/webp"/>{selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>}<small style={{marginTop: '4px'}}>Formati: PNG, JPG, JPEG, WEBP. Max: 5 MB.</small></div></div><div className="modal-footer"><button onClick={() => setModal(null)} className="web3-button secondary">Chiudi</button><button onClick={handleInitializeBatch} disabled={isProcessing} className="web3-button">{isProcessing ? (loadingMessage || "...") : "Conferma"}</button></div></div></div> )}
             
