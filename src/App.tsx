@@ -1,22 +1,19 @@
-// FILE: src/App.tsx
-// VERSIONE CHE UTILIZZA L'IMPORT CORRETTO CON LA 'G' MAIUSCOLA
-
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+// Nota: non importiamo più BrowserRouter qui
+import { Routes, Route } from 'react-router-dom';
 
-// Importa i componenti delle pagine dalla loro cartella
+// I percorsi corretti basati sulla tua struttura
 import AziendaPage from './pages/AziendaPage';
-import GestisciPage from './pages/GestisciPage'; // Utilizza 'GestisciPage' con la G maiuscola
+import GestisciPage from './pages/GestisciPage'; 
 import './App.css';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<AziendaPage />} />
-        <Route path="/gestisci/:batchId" element={<GestisciPage />} />
-      </Routes>
-    </BrowserRouter>
+    // Il contenitore <BrowserRouter> è stato rimosso da qui, perché è già in main.tsx
+    <Routes>
+      <Route path="/" element={<AziendaPage />} />
+      <Route path="/gestisci/:batchId" element={<GestisciPage />} />
+    </Routes>
   );
 }
 
