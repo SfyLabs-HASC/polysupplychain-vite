@@ -1,6 +1,6 @@
 // FILE: src/pages/GestisciPage.tsx
 // NUOVA PAGINA PER LA GESTIONE DI UN SINGOLO BATCH
-// test finale
+// test finale (CON GRAFICA AGGIORNATA)
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -18,13 +18,15 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
+// COMPONENTE HEADER MODIFICATO: Rimosso "Ciao,"
 const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     const companyName = contributorInfo ? contributorInfo[0] : 'Azienda';
     const credits = contributorInfo ? contributorInfo[1].toString() : '...';
     return (
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
             <div>
-                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>Ciao, {companyName}</h2>
+                {/* MODIFICA: Tolto "Ciao," */}
+                <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>{companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
                     <div className="status-item" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div>
@@ -34,33 +36,47 @@ const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     );
 };
 
+// COMPONENTE CARD RIEPILOGO MODIFICATO: Stile e layout migliorati
 const BatchSummaryCard = ({ batchInfo, stepCount, onAddStep, onFinalize }: { batchInfo: any, stepCount: number, onAddStep: () => void, onFinalize: () => void }) => {
     if (!batchInfo) return null;
     const imageUrl = batchInfo[7] && batchInfo[7] !== "N/A"
         ? `https://musical-emerald-partridge.myfilebase.com/ipfs/${batchInfo[7]}`
         : "https://musical-emerald-partridge.myfilebase.com/ipfs/QmNUGt9nxmkV27qF56jFAG9FUPABvGww5TTW9R9vh2TdvB";
+    
+    const isClosed = batchInfo[8];
+
     return (
-        <div className="card" style={{ marginTop: '2rem', backgroundColor: '#8bc4a8' }}>
-            <div style={{ display: 'flex', gap: '2rem' }}>
+        // MODIFICA: backgroundColor rimosso, aggiunto border
+        <div className="card" style={{ marginTop: '2rem', backgroundColor: 'transparent', border: '2px solid #8bc4a8' }}>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
                 <div style={{ flex: '0 0 150px' }}>
                     <img src={imageUrl} alt="Immagine batch" style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '8px', aspectRatio: '1 / 1' }}/>
                 </div>
-                <div style={{ flex: '1' }}>
+                <div style={{ flex: '1', display: 'flex', flexDirection: 'column' }}>
                     <h3>Riepilogo Iscrizione: {batchInfo[3]}</h3>
-                    <p><strong>Descrizione:</strong> {batchInfo[4] || 'N/D'}</p>
-                    <p><strong>Luogo:</strong> {batchInfo[6] || 'N/D'} | <strong>Data:</strong> {batchInfo[5] || 'N/D'}</p>
-                    <p><strong>N° Passaggi:</strong> {stepCount} | <strong>Stato:</strong> {batchInfo[8] ? <span className="status-closed">Chiuso</span> : <span className="status-open">Aperto</span>}</p>
-                    {!batchInfo[8] && (
-                        <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-                            <button className="web3-button" onClick={onAddStep}>Aggiungi Passaggio</button>
-                            <button className="web3-button secondary" onClick={onFinalize}>Finalizza Iscrizione</button>
-                        </div>
-                    )}
+                    <p style={{ marginTop: '0.5rem' }}><strong>Descrizione:</strong> {batchInfo[4] || 'N/D'}</p>
+                    
+                    {/* MODIFICA: Layout migliorato per le informazioni */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem', marginBottom: '1rem' }}>
+                        <div><strong>Luogo:</strong><br/>{batchInfo[6] || 'N/D'}</div>
+                        <div><strong>Data:</strong><br/>{batchInfo[5] || 'N/D'}</div>
+                        <div><strong>N° Passaggi:</strong><br/>{stepCount}</div>
+                        <div><strong>Stato:</strong><br/>{isClosed ? <span className="status-closed">Chiuso</span> : <span className="status-open">Aperto</span>}</div>
+                    </div>
                 </div>
+
+                {/* MODIFICA: Pulsanti allineati a destra */}
+                {!isClosed && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-end' }}>
+                        <button className="web3-button" onClick={onAddStep}>Aggiungi Passaggio</button>
+                        <button className="web3-button secondary" onClick={onFinalize}>Finalizza Iscrizione</button>
+                    </div>
+                )}
             </div>
         </div>
     );
 };
+
 
 const StepCard = ({ stepInfo }: { stepInfo: any }) => (
     <div className="card" style={{backgroundColor: '#343a40', color: '#f8f9fa', marginTop: '1rem'}}>
@@ -72,8 +88,8 @@ const StepCard = ({ stepInfo }: { stepInfo: any }) => (
         </div>
         {stepInfo[4] && stepInfo[4] !== "N/A" && (
              <a href={`https://musical-emerald-partridge.myfilebase.com/ipfs/${stepInfo[4]}`} target="_blank" rel="noopener noreferrer" className="link-button" style={{marginTop: '1rem'}}>
-                Vedi Documento Allegato
-            </a>
+                 Vedi Documento Allegato
+             </a>
         )}
     </div>
 );
