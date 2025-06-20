@@ -1,19 +1,22 @@
 // FILE: src/pages/GestisciPage.tsx
-// (CODICE CON CORREZIONI A STATO, HEADER E CONTEGGIO EVENTI)
+// CORRETTO: Aggiornata la rete a Moonbeam
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
-import { createThirdwebClient, getContract, prepareContractCall, readContract } from 'thirdweb';
-import { polygon } from 'thirdweb/chains';
+import { createThirdwebClient, getContract, prepareContractCall, readContract, defineChain } from 'thirdweb';
 import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css';
 import TransactionStatusModal from '../components/TransactionStatusModal';
 
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
+
+// MODIFICA: Definita la chain corretta (Moonbeam)
+const moonbeamChain = defineChain(1284);
+
 const contract = getContract({ 
   client, 
-  chain: polygon,
+  chain: moonbeamChain, // MODIFICA: Usata la chain corretta
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
@@ -111,11 +114,11 @@ const AggiungiEventoModal = ({ batchId, contributorName, onClose, onSuccess }: {
                 <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header"><h2>Aggiungi Nuovo Evento ({currentStep}/5)</h2></div>
                     <div className="modal-body" style={{ minHeight: '350px' }}>
-                        {currentStep === 1 && <div> <div className="form-group"> <label>Nome Evento <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label> <input type="text" name="eventName" value={formData.eventName} onChange={handleInputChange} className="form-input" maxLength={100} /> <small className="char-counter">{formData.eventName.length} / 100</small> </div> <div style={helpTextStyle}><p>Inserisci un nome identificativo per questo evento, può essere un'operazione specifica (come "Raccolta", "Trasformazione", "Spedizione"), un controllo di qualità, un passaggio logistico, un aggiornamento contrattuale o qualsiasi attività rilevante per la tracciabilità del prodotto. Scegli un nome descrittivo che aiuti a comprendere subito di cosa si tratta.</p></div> </div>}
-                        {currentStep === 2 && <div> <div className="form-group"> <label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <textarea name="description" value={formData.description} onChange={handleInputChange} className="form-input" rows={4} maxLength={500}></textarea> <small className="char-counter">{formData.description.length} / 500</small> </div> <div style={helpTextStyle}><p>Fornisci una breve descrizione di cosa è avvenuto in questo evento: specifica le attività svolte, i dettagli rilevanti, eventuali soggetti coinvolti o note tecniche utili per la tracciabilità.</p></div> </div>}
-                        {currentStep === 3 && <div> <div className="form-group"> <label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="form-input" maxLength={100} /> <small className="char-counter">{formData.location.length} / 100</small> </div> <div style={helpTextStyle}><p>Inserisci il luogo dove si è svolto questo evento (es. un magazzino, un laboratorio, un punto vendita, ecc.).</p></div> </div>}
-                        {currentStep === 4 && <div> <div className="form-group"> <label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" max={new Date().toISOString().split('T')[0]} /> </div> <div style={helpTextStyle}><p>Inserisci la data in cui si è verificato l'evento.</p></div> </div>}
-                        {currentStep === 5 && <div> <div className="form-group"> <label>Carica Allegato <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="file" name="attachment" onChange={handleFileChange} className="form-input" accept=".jpg, .jpeg, .png, .webp, .pdf, .docx, .xlsx, .txt, .csv"/> {selectedFile && <p className="file-name-preview">File selezionato: {selectedFile.name}</p>} <small style={{marginTop: '4px'}}>Formati supportati. Max: 5 MB.</small> </div> <div style={helpTextStyle}><p>Allega un documento o un'immagine relativa a questo evento (es. bolla di trasporto, certificato di analisi, foto del prodotto, ecc.).</p></div> </div>}
+                        {currentStep === 1 && <div> <div className="form-group"> <label>Nome Evento <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label> <input type="text" name="eventName" value={formData.eventName} onChange={handleInputChange} className="form-input" maxLength={100} /> <small className="char-counter">{formData.eventName.length} / 100</small> </div> <div style={helpTextStyle}><p>Inserisci un nome identificativo per questo evento...</p></div> </div>}
+                        {currentStep === 2 && <div> <div className="form-group"> <label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <textarea name="description" value={formData.description} onChange={handleInputChange} className="form-input" rows={4} maxLength={500}></textarea> <small className="char-counter">{formData.description.length} / 500</small> </div> <div style={helpTextStyle}><p>Fornisci una breve descrizione...</p></div> </div>}
+                        {currentStep === 3 && <div> <div className="form-group"> <label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="form-input" maxLength={100} /> <small className="char-counter">{formData.location.length} / 100</small> </div> <div style={helpTextStyle}><p>Inserisci il luogo dove si è svolto questo evento...</p></div> </div>}
+                        {currentStep === 4 && <div> <div className="form-group"> <label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="date" name="date" value={formData.date} onChange={handleInputChange} className="form-input" max={new Date().toISOString().split('T')[0]} /> </div> <div style={helpTextStyle}><p>Inserisci la data...</p></div> </div>}
+                        {currentStep === 5 && <div> <div className="form-group"> <label>Carica Allegato <span style={{color: '#6c757d'}}>Non obbligatorio</span></label> <input type="file" name="attachment" onChange={handleFileChange} className="form-input" accept=".jpg, .jpeg, .png, .webp, .pdf, .docx, .xlsx, .txt, .csv"/> {selectedFile && <p className="file-name-preview">File: {selectedFile.name}</p>} <small style={{marginTop: '4px'}}>Max: 5 MB.</small> </div> <div style={helpTextStyle}><p>Allega un documento o un'immagine...</p></div> </div>}
                     </div>
                     <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
                         <div>{currentStep > 1 && <button onClick={() => setCurrentStep(p => p - 1)} className="web3-button secondary">Indietro</button>}</div>
@@ -139,7 +142,6 @@ const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
     return (
         <div className="dashboard-header-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-                {/* MODIFICA: Aumentata grandezza del font */}
                 <h2 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '3rem' }}>{companyName}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div>
@@ -147,9 +149,9 @@ const GestisciPageHeader = ({ contributorInfo }: { contributorInfo: any }) => {
                 </div>
             </div>
             <div>
-                <Link to="/">
-                    <button style={{backgroundColor: '#6A5ACD', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '8px', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold'}}>
-                        ← Torna alla Pagina Principale
+                <Link to="/azienda">
+                    <button className="web3-button">
+                        ← Torna al Dashboard
                     </button>
                 </Link>
             </div>
@@ -166,14 +168,10 @@ const BatchSummaryCard = ({ batchInfo, eventCount, onAddEventoClick, onFinalize 
     const isPlaceholder=imageUrl===defaultImageUrl;
     const isClosed=batchInfo[8];
 
-    // MODIFICA: Stile per il pallino colorato dello stato
     const statusIndicatorStyle = {
-        height: '12px',
-        width: '12px',
+        height: '12px', width: '12px',
         backgroundColor: isClosed ? '#28a745' : '#ffc107', // Verde per chiuso, Giallo per aperto
-        borderRadius: '50%',
-        display: 'inline-block',
-        marginRight: '8px',
+        borderRadius: '50%', display: 'inline-block', marginRight: '8px',
     };
 
     return(
@@ -184,7 +182,6 @@ const BatchSummaryCard = ({ batchInfo, eventCount, onAddEventoClick, onFinalize 
                 <p style={{margin:0,color:'#ced4da',fontSize:'0.95rem'}}>{batchInfo[4]||'Nessuna descrizione fornita.'}</p>
             </div>
             <div style={{flex:'1 1 25%',color:'#ced4da',textAlign:'left'}}>
-                {/* MODIFICA: Aggiunto indicatore colorato e usato eventCount */}
                 <p style={{margin:'0.3rem 0', display: 'flex', alignItems: 'center'}}>
                     <span style={statusIndicatorStyle}></span>
                     <strong>Stato Iscrizione:</strong> <span style={{fontWeight:'bold', marginLeft: '4px'}}>{isClosed?'Chiuso':'Aperto'}</span>
@@ -195,8 +192,8 @@ const BatchSummaryCard = ({ batchInfo, eventCount, onAddEventoClick, onFinalize 
             </div>
             {!isClosed&&(
                 <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
-                    <button onClick={onAddEventoClick} style={{backgroundColor:'#6A5ACD',color:'white',border:'none',padding:'12px 24px',borderRadius:'8px',cursor:'pointer',fontSize:'1rem',fontWeight:'bold',width:'200px'}}>Aggiungi Evento</button>
-                    <button onClick={onFinalize} style={{backgroundColor:'#495057',color:'#ced4da',border:'none',padding:'12px 24px',borderRadius:'8px',cursor:'pointer',fontSize:'1rem',fontWeight:'bold',width:'200px'}}>Finalizza Iscrizione</button>
+                    <button onClick={onAddEventoClick} className="web3-button">Aggiungi Evento</button>
+                    <button onClick={onFinalize} className="web3-button secondary">Finalizza Iscrizione</button>
                 </div>
             )}
         </div>
@@ -215,7 +212,6 @@ export default function GestisciPage() {
     const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // MODIFICA: Hook dedicato per leggere il conteggio degli eventi in modo affidabile
     const { data: eventCount, refetch: refetchEventCount } = useReadContract({
         contract,
         method: "function getBatchStepCount(uint256)",
@@ -231,13 +227,12 @@ export default function GestisciPage() {
             const info = await readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [id] });
             setBatchInfo(info);
             
-            // La logica per caricare i dettagli degli eventi rimane, ma il conteggio ora è gestito dall'hook
             const count = await readContract({ contract, abi, method: "function getBatchStepCount(uint256) view returns (uint256)", params: [id] }) as bigint;
             const stepsPromises = Array.from({ length: Number(count) }, (_, i) => 
                 readContract({ contract, abi, method: "function getStepDetails(uint256, uint256) view returns (string, string, string, string, string)", params: [id, BigInt(i)] })
             );
             const stepsDetails = await Promise.all(stepsPromises);
-            setEventi(stepsDetails.reverse()); // Mostra i più recenti per primi
+            setEventi(stepsDetails.reverse());
         } catch (error) { console.error("Errore nel caricare i dati del batch:", error); } 
         finally { setIsLoading(false); }
     };
@@ -251,7 +246,7 @@ export default function GestisciPage() {
         const transaction = prepareContractCall({ contract, abi, method: "function closeBatch(uint256 _batchId)", params: [BigInt(batchId)] });
         sendTransaction(transaction, {
             onSuccess: () => { setTxResult({ status: 'success', message: 'Iscrizione finalizzata con successo!' }); fetchBatchData(); },
-            onError: (err) => setTxResult({ status: 'error', message: `Errore: ${err.message}` })
+            onError: (err) => { setTxResult({ status: 'error', message: `Errore: ${err.message}` })
         });
     };
     
@@ -259,14 +254,14 @@ export default function GestisciPage() {
         setTxResult({ status: 'success', message: 'Evento aggiunto con successo!' });
         setIsModalOpen(false);
         fetchBatchData();
-        refetchEventCount(); // MODIFICA: Forza l'aggiornamento del conteggio eventi
+        refetchEventCount();
     };
 
     return (
         <div className="app-container-full" style={{ padding: '0 2rem' }}>
             <header className="main-header-bar">
-                <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}><div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain - Area Riservata</div></Link>
-                <div className="wallet-button-container"><ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div>
+                <Link to="/azienda" style={{ textDecoration: 'none', color: 'inherit' }}><div style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>EasyChain</div></Link>
+                <div className="wallet-button-container"><ConnectButton client={client} chain={moonbeamChain} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div>
             </header>
             
             <main className="main-content-full">

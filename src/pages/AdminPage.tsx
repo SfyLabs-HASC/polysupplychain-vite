@@ -1,10 +1,9 @@
 // FILE: src/pages/AdminPage.tsx
-// QUESTA È LA VERSIONE FINALE E COMPLETA CHE RISOLVE TUTTI GLI ERRORI
+// CORRETTO: Aggiornata la rete a Moonbeam
 
 import React, { useState, useEffect, useCallback } from "react";
 import { ConnectButton, TransactionButton, useActiveAccount } from "thirdweb/react";
-import { createThirdwebClient, getContract, readContract, prepareContractCall } from "thirdweb";
-import { polygon } from "thirdweb/chains";
+import { createThirdwebClient, getContract, readContract, prepareContractCall, defineChain } from "thirdweb";
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 
@@ -20,9 +19,13 @@ type Company = {
 
 // Configurazione del Client e del Contratto
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
+
+// MODIFICA: Definita la chain corretta (Moonbeam)
+const moonbeamChain = defineChain(1284); 
+
 const contract = getContract({ 
   client, 
-  chain: polygon,
+  chain: moonbeamChain, // MODIFICA: Usata la chain corretta
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
@@ -231,7 +234,7 @@ const AdminContent = () => {
 
     if (!account) { return <p style={{textAlign: 'center', marginTop: '2rem'}}>Connetti il tuo wallet da amministratore per accedere.</p>; }
     if (isLoading) { return <p style={{textAlign: 'center', marginTop: '2rem'}}>Verifica permessi in corso...</p>; }
-    return isAllowed ? <div><h3>Benvenuto, SFY Labs!</h3><CompanyList /></div> : <h2 style={{ color: '#ef4444', fontSize: '2rem', marginTop: '4rem' }}>❌ ACCESSO NEGATO</h2>;
+    return isAllowed ? <div><h3>Benvenuto, Amministratore!</h3><CompanyList /></div> : <h2 style={{ color: '#ef4444', fontSize: '2rem', marginTop: '4rem' }}>❌ ACCESSO NEGATO</h2>;
 };
 
 
@@ -241,7 +244,8 @@ export default function AdminPage() {
       <main className="main-content" style={{width: '100%'}}>
         <header className="header" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <h1 className="page-title">Pannello Amministrazione</h1>
-          <ConnectButton client={client} chain={polygon} />
+          {/* MODIFICA: Usata la chain corretta */}
+          <ConnectButton client={client} chain={moonbeamChain} />
         </header>
         <AdminContent />
       </main>
