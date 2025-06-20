@@ -1,17 +1,22 @@
+// FILE: src/pages/AziendaPage.tsx (Modificato per usare un RPC pubblico di Moonbeam)
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+// MODIFICA: Importiamo 'defineChain' per creare una definizione di chain custom
 import { ConnectButton, useActiveAccount, useReadContract, useSendTransaction } from 'thirdweb/react';
 import { createThirdwebClient, getContract, prepareContractCall, readContract } from 'thirdweb';
-import { polygon } from 'thirdweb/chains';
+// MODIFICA: Importiamo 'defineChain'
+import { defineChain } from 'thirdweb/chains'; 
 import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css'; 
 
 import TransactionStatusModal from '../components/TransactionStatusModal';
 
-// --- Stili CSS incorporati per responsività e per risolvere errore di build ---
+// --- Stili CSS (invariati) ---
 const AziendaPageStyles = () => (
   <style>{`
+    /* ... il tuo CSS rimane qui, non l'ho toccato ... */
     /* Stili globali per la pagina */
     .app-container-full { padding: 0 2rem; }
     .main-header-bar { display: flex; justify-content: space-between; align-items: center; }
@@ -34,8 +39,6 @@ const AziendaPageStyles = () => (
     .recap-summary { text-align: left; padding: 15px; background-color: #2a2a2a; border: 1px solid #444; border-radius: 8px; margin-bottom: 20px;}
     .recap-summary p { margin: 8px 0; word-break: break-word; }
     .recap-summary p strong { color: #f8f9fa; }
-
-    /* Media Query per dispositivi mobili (max-width: 768px) */
     @media (max-width: 768px) {
         .app-container-full { padding: 0 1rem; }
         .main-header-bar { flex-direction: column; align-items: flex-start; gap: 1rem; }
@@ -65,15 +68,28 @@ const AziendaPageStyles = () => (
   `}</style>
 );
 
+// --- INIZIO MODIFICHE ---
+
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
-const contract = getContract({ 
-  client, 
-  chain: polygon,
-  address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
+
+// 1. Definiamo la rete Moonbeam con il suo RPC pubblico
+const moonbeamPublicRpc = defineChain({
+  id: 1284, // ID della rete Moonbeam
+  rpc: "https://moonbeam.public.blastapi.io", // RPC Pubblico trovato
 });
 
-const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
+// 2. Usiamo la nuova definizione di chain per ottenere il contratto
+const contract = getContract({ 
+  client, 
+  chain: moonbeamPublicRpc, // <-- Usiamo la chain custom
+  address: "0x4a866C3A071816E3186e18cbE99a3339f4571302" // ATTENZIONE: l'indirizzo del contratto deve essere valido su Moonbeam
+});
 
+// --- FINE MODIFICHE ---
+
+
+// --- Il resto del codice (invariato) ---
+const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
@@ -104,9 +120,7 @@ const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => 
         </>
     );
 };
-
 interface BatchData { id: string; batchId: bigint; name: string; description: string; date: string; location: string; isClosed: boolean; }
-
 const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLocationFilter, statusFilter, setStatusFilter }: any) => {
     const [currentPage, setCurrentPage] = useState(1); const [itemsToShow, setItemsToShow] = useState(10); const MAX_PER_PAGE = 30; const totalPages = Math.max(1, Math.ceil(batches.length / MAX_PER_PAGE)); const startIndex = (currentPage - 1) * MAX_PER_PAGE; const itemsOnCurrentPage = batches.slice(startIndex, startIndex + MAX_PER_PAGE); const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow); useEffect(() => { setCurrentPage(1); setItemsToShow(10); }, [batches, nameFilter, locationFilter, statusFilter]); const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE)); const handlePageChange = (page: number) => { if (page < 1 || page > totalPages) return; setCurrentPage(page); setItemsToShow(10); };
     return (
@@ -122,7 +136,6 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
         </div>
     );
 };
-
 const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
     const companyName = contributorInfo[0] || 'Azienda'; const credits = contributorInfo[1].toString();
     return (
@@ -132,15 +145,11 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
         </div>
     );
 };
-
 const getInitialFormData = () => ({ name: "", description: "", date: "", location: "" });
-
-// Funzione per troncare il testo
 const truncateText = (text: string, maxLength: number) => {
     if (!text) return text;
     return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
 };
-
 export default function AziendaPage() {
     const account = useActiveAccount();
     const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo, isError } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
@@ -158,7 +167,6 @@ export default function AziendaPage() {
     const [statusFilter, setStatusFilter] = useState('all');
     const [loadingMessage, setLoadingMessage] = useState('');
     const [currentStep, setCurrentStep] = useState(1);
-
     const fetchAllBatches = async () => {
         if (!account?.address) return;
         setIsLoadingBatches(true);
@@ -170,14 +178,12 @@ export default function AziendaPage() {
         } catch (error) { console.error("Errore nel caricare i lotti:", error); setAllBatches([]); } 
         finally { setIsLoadingBatches(false); }
     };
-
     useEffect(() => {
         if (account?.address && prevAccountRef.current !== account.address) { refetchContributorInfo(); fetchAllBatches(); } 
         else if (account?.address && !prevAccountRef.current) { fetchAllBatches(); }
         else if (!account && prevAccountRef.current) { window.location.href = '/'; }
         prevAccountRef.current = account?.address;
     }, [account]);
-
     useEffect(() => {
         let tempBatches = [...allBatches];
         if (nameFilter) tempBatches = tempBatches.filter(b => b.name.toLowerCase().includes(nameFilter.toLowerCase()));
@@ -188,7 +194,6 @@ export default function AziendaPage() {
     
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setFormData(prev => ({...prev, [e.target.name]: e.target.value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { setSelectedFile(e.target.files?.[0] || null); };
-    
     const handleInitializeBatch = async () => {
         if (!formData.name.trim()) { setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' }); return; }
         setLoadingMessage('Preparazione transazione...');
@@ -212,13 +217,15 @@ export default function AziendaPage() {
             onError: (err) => { setTxResult({ status: 'error', message: err.message.toLowerCase().includes("insufficient funds") ? "Crediti Insufficienti, Ricarica" : "Errore nella transazione." }); setLoadingMessage(''); } 
         });
     };
-    
     const openModal = () => { setFormData(getInitialFormData()); setSelectedFile(null); setCurrentStep(1); setTxResult(null); setModal('init'); }
     const handleCloseModal = () => setModal(null);
     const handleNextStep = () => { if (currentStep === 1 && !formData.name.trim()) { alert("Il campo 'Nome Iscrizione' è obbligatorio."); return; } if (currentStep < 6) setCurrentStep(prev => prev + 1); };
     const handlePrevStep = () => { if (currentStep > 1) setCurrentStep(prev => prev - 1); };
     
-    if (!account) { return <div className='login-container'><AziendaPageStyles /><ConnectButton client={client} chain={polygon} accountAbstraction={{ chain: polygon, sponsorGas: true }} wallets={[inAppWallet()]} connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }} /></div>; }
+    // --- INIZIO MODIFICHE ---
+    // 3. Applichiamo la chain custom anche al bottone di connessione
+    if (!account) { return <div className='login-container'><AziendaPageStyles /><ConnectButton client={client} chain={moonbeamPublicRpc} accountAbstraction={{ chain: moonbeamPublicRpc, sponsorGas: true }} wallets={[inAppWallet()]} connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }} /></div>; }
+    // --- FINE MODIFICHE ---
     
     const renderDashboardContent = () => { 
         if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>; 
@@ -231,15 +238,16 @@ export default function AziendaPage() {
             </>
         ); 
     };
-    
     const isProcessing = loadingMessage !== '' || isPending;
     const today = new Date().toISOString().split('T')[0];
     const helpTextStyle = { backgroundColor: '#343a40', border: '1px solid #495057', borderRadius: '8px', padding: '16px', marginTop: '16px', fontSize: '0.9rem', color: '#f8f9fa' };
-
     return (
         <div className="app-container-full">
             <AziendaPageStyles />
-            <header className="main-header-bar"><div className="header-title">EasyChain - Area Riservata</div><div className="wallet-button-container"><ConnectButton client={client} chain={polygon} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div></header>
+            {/* --- INIZIO MODIFICHE --- */}
+            {/* 4. Applichiamo la chain custom anche al bottone nell'header */}
+            <header className="main-header-bar"><div className="header-title">EasyChain - Area Riservata</div><div className="wallet-button-container"><ConnectButton client={client} chain={moonbeamPublicRpc} detailsModal={{ hideSend: true, hideReceive: true, hideBuy: true, hideTransactionHistory: true }}/></div></header>
+            {/* --- FINE MODIFICHE --- */}
             <main className="main-content-full">{renderDashboardContent()}</main>
             
             {modal === 'init' && ( 
@@ -247,49 +255,12 @@ export default function AziendaPage() {
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header"><h2>Nuova Iscrizione ({currentStep}/6)</h2></div>
                         <div className="modal-body" style={{ minHeight: '350px' }}>
-                            {currentStep === 1 && (
-                                <div>
-                                    <div className="form-group"><label>Nome Iscrizione <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.name.length} / 100</small></div>
-                                    <div style={helpTextStyle}><p><strong>ℹ️ Come scegliere il Nome Iscrizione</strong></p><p>Il Nome Iscrizione è un'etichetta descrittiva che ti aiuta a identificare in modo chiaro ciò che stai registrando on-chain. Ad esempio:</p><ul style={{textAlign: 'left', paddingLeft: '20px'}}><li>Il nome di un prodotto o varietà: <em>Pomodori San Marzano 2025</em></li><li>Il numero di lotto: <em>Lotto LT1025 – Olio EVO 3L</em></li><li>Il nome di un contratto: <em>Contratto fornitura COOP – Aprile 2025</em></li><li>Una certificazione o audit: <em>Certificazione Bio ICEA 2025</em></li><li>Un riferimento amministrativo: <em>Ordine n.778 – Cliente NordItalia</em></li></ul><p style={{marginTop: '1rem'}}><strong>📌 Consiglio:</strong> scegli un nome breve ma significativo, che ti aiuti a ritrovare facilmente l’iscrizione anche dopo mesi o anni.</p></div>
-                                </div>
-                            )}
-                            {currentStep === 2 && (
-                                <div>
-                                    <div className="form-group"><label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div>
-                                    <div style={helpTextStyle}><p>Inserisci una descrizione del prodotto, lotto, contratto o altro elemento principale. Fornisci tutte le informazioni essenziali per identificarlo chiaramente nella filiera o nel contesto dell’iscrizione.</p></div>
-                                </div>
-                            )}
-                            {currentStep === 3 && (
-                                <div>
-                                    <div className="form-group"><label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div>
-                                    <div style={helpTextStyle}><p>Inserisci il luogo di origine o di produzione del prodotto o lotto. Può essere una città, una regione, un'azienda agricola o uno stabilimento specifico per identificare con precisione dove è stato realizzato.</p></div>
-                                </div>
-                            )}
-                            {currentStep === 4 && (
-                                <div>
-                                    <div className="form-group"><label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div>
-                                    <div style={helpTextStyle}><p>Inserisci una data, puoi utilizzare il giorno attuale o una data precedente alla conferma di questa Iscrizione.</p></div>
-                                </div>
-                            )}
-                            {currentStep === 5 && (
-                                <div>
-                                    <div className="form-group"><label>Immagine <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/webp"/><small style={{marginTop: '4px'}}>Formati: PNG, JPG, WEBP. Max: 5 MB.</small>{selectedFile && <p className="file-name-preview">File: {selectedFile.name}</p>}</div>
-                                    <div style={helpTextStyle}><p>Carica un’immagine rappresentativa del prodotto, lotto, contratto, etc. Rispetta i formati e i limiti di peso.</p><p style={{marginTop: '10px'}}><strong>Consiglio:</strong> Per una visualizzazione ottimale, usa un'immagine quadrata (formato 1:1).</p></div>
-                                </div>
-                            )}
-                             {currentStep === 6 && (
-                                <div>
-                                    <h4>Riepilogo Dati</h4>
-                                    <div className="recap-summary">
-                                        <p><strong>Nome:</strong> {truncateText(formData.name, 40) || 'Non specificato'}</p>
-                                        <p><strong>Descrizione:</strong> {truncateText(formData.description, 60) || 'Non specificata'}</p>
-                                        <p><strong>Luogo:</strong> {truncateText(formData.location, 40) || 'Non specificato'}</p>
-                                        <p><strong>Data:</strong> {formData.date ? formData.date.split('-').reverse().join('/') : 'Non specificata'}</p>
-                                        <p><strong>Immagine:</strong> {truncateText(selectedFile?.name || '', 40) || 'Nessuna'}</p>
-                                    </div>
-                                    <p>Vuoi confermare e registrare questi dati sulla blockchain?</p>
-                                </div>
-                            )}
+                            {currentStep === 1 && ( <div> <div className="form-group"><label>Nome Iscrizione <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.name.length} / 100</small></div> <div style={helpTextStyle}><p><strong>ℹ️ Come scegliere il Nome Iscrizione</strong></p><p>Il Nome Iscrizione è un'etichetta descrittiva che ti aiuta a identificare in modo chiaro ciò che stai registrando on-chain. Ad esempio:</p><ul style={{textAlign: 'left', paddingLeft: '20px'}}><li>Il nome di un prodotto o varietà: <em>Pomodori San Marzano 2025</em></li><li>Il numero di lotto: <em>Lotto LT1025 – Olio EVO 3L</em></li><li>Il nome di un contratto: <em>Contratto fornitura COOP – Aprile 2025</em></li><li>Una certificazione o audit: <em>Certificazione Bio ICEA 2025</em></li><li>Un riferimento amministrativo: <em>Ordine n.778 – Cliente NordItalia</em></li></ul><p style={{marginTop: '1rem'}}><strong>📌 Consiglio:</strong> scegli un nome breve ma significativo, che ti aiuti a ritrovare facilmente l’iscrizione anche dopo mesi o anni.</p></div> </div> )}
+                            {currentStep === 2 && ( <div> <div className="form-group"><label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div> <div style={helpTextStyle}><p>Inserisci una descrizione del prodotto, lotto, contratto o altro elemento principale. Fornisci tutte le informazioni essenziali per identificarlo chiaramente nella filiera o nel contesto dell’iscrizione.</p></div> </div> )}
+                            {currentStep === 3 && ( <div> <div className="form-group"><label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div> <div style={helpTextStyle}><p>Inserisci il luogo di origine o di produzione del prodotto o lotto. Può essere una città, una regione, un'azienda agricola o uno stabilimento specifico per identificare con precisione dove è stato realizzato.</p></div> </div> )}
+                            {currentStep === 4 && ( <div> <div className="form-group"><label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div> <div style={helpTextStyle}><p>Inserisci una data, puoi utilizzare il giorno attuale o una data precedente alla conferma di questa Iscrizione.</p></div> </div> )}
+                            {currentStep === 5 && ( <div> <div className="form-group"><label>Immagine <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/webp"/><small style={{marginTop: '4px'}}>Formati: PNG, JPG, WEBP. Max: 5 MB.</small>{selectedFile && <p className="file-name-preview">File: {selectedFile.name}</p>}</div> <div style={helpTextStyle}><p>Carica un’immagine rappresentativa del prodotto, lotto, contratto, etc. Rispetta i formati e i limiti di peso.</p><p style={{marginTop: '10px'}}><strong>Consiglio:</strong> Per una visualizzazione ottimale, usa un'immagine quadrata (formato 1:1).</p></div> </div> )}
+                            {currentStep === 6 && ( <div> <h4>Riepilogo Dati</h4> <div className="recap-summary"> <p><strong>Nome:</strong> {truncateText(formData.name, 40) || 'Non specificato'}</p> <p><strong>Descrizione:</strong> {truncateText(formData.description, 60) || 'Non specificata'}</p> <p><strong>Luogo:</strong> {truncateText(formData.location, 40) || 'Non specificato'}</p> <p><strong>Data:</strong> {formData.date ? formData.date.split('-').reverse().join('/') : 'Non specificata'}</p> <p><strong>Immagine:</strong> {truncateText(selectedFile?.name || '', 40) || 'Nessuna'}</p> </div> <p>Vuoi confermare e registrare questi dati sulla blockchain?</p> </div> )}
                         </div>
                         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
                             <div>{currentStep > 1 && <button onClick={handlePrevStep} className="web3-button secondary" disabled={isProcessing}>Indietro</button>}</div>
