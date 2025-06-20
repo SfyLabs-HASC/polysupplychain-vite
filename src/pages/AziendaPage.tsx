@@ -123,4 +123,4 @@ export default function AziendaPage() {
             {txResult && <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => { if (txResult.status === 'success') handleCloseModal(); setTxResult(null); }} />}
         </div>
     );
-}t
+}
