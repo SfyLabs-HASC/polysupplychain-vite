@@ -8,9 +8,8 @@ import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css';
 import TransactionStatusModal from '../components/TransactionStatusModal';
 
-// MODIFICA FINALE BUILD: Import delle utility dai percorsi corretti di V5
-import { getTransactionReceipt } from 'thirdweb/transaction'; // Questo in realtà non serve più con il nuovo hook, lo rimuovo per pulizia.
-import { parseEventLogs } from 'thirdweb/events'; // <-- ECCO LA CORREZIONE
+// MODIFICA FINALE BUILD: Importiamo 'parseEventLogs' direttamente da 'viem'
+import { parseEventLogs } from 'viem';
 
 
 // --- CONFIGURAZIONE PER POLYGON CON SDK v5 ---
@@ -68,13 +67,95 @@ const AziendaPageStyles = () => (
 );
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 interface BatchData { id: string; batchId: bigint; name: string; description: string; date: string; location: string; isClosed: boolean; }
-const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => { /* ... codice completo ... */ };
-const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLocationFilter, statusFilter, setStatusFilter }: any) => { /* ... codice completo ... */ };
-const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => { /* ... codice completo ... */ };
+const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
+    const [showDescription, setShowDescription] = useState(false);
+    const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
+    const formatDate = (dateStr: string | undefined) => !dateStr || dateStr.split('-').length !== 3 ? '/' : dateStr.split('-').reverse().join('/');
+    return (
+        <>
+            <tr className="desktop-row">
+                <td>{localId}</td>
+                <td><span className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || '/'}</span></td>
+                <td>{formatDate(batch.date)}</td>
+                <td>{batch.location || '/'}</td>
+                <td>{stepCount !== undefined ? stepCount.toString() : '/'}</td>
+                <td>{batch.isClosed ? <span className="status-closed">✅ Chiuso</span> : <span className="status-open">⏳ Aperto</span>}</td>
+                <td><Link to={`/gestisci/${batch.batchId}`} className="web3-button">Gestisci</Link></td>
+            </tr>
+            <tr className="mobile-card">
+                <td>
+                    <div className="card-header"><strong className="clickable-name" onClick={() => setShowDescription(true)}>{batch.name || 'N/A'}</strong><span className={`status ${batch.isClosed ? 'status-closed' : 'status-open'}`}>{batch.isClosed ? '✅ Chiuso' : '⏳ Aperto'}</span></div>
+                    <div className="card-body"><p><strong>ID:</strong> {localId}</p><p><strong>Data:</strong> {formatDate(batch.date)}</p><p><strong>Luogo:</strong> {batch.location || '/'}</p><p><strong>N° Passaggi:</strong> {stepCount !== undefined ? stepCount.toString() : '/'}</p></div>
+                    <div className="card-footer"><Link to={`/gestisci/${batch.batchId}`} className="web3-button">Gestisci</Link></div>
+                </td>
+            </tr>
+            {showDescription && (
+                <div className="modal-overlay" onClick={() => setShowDescription(false)}>
+                    <div className="modal-content description-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header"><h2>Descrizione Iscrizione / Lotto</h2></div>
+                        <div className="modal-body"><p>{batch.description || 'Nessuna descrizione fornita.'}</p></div>
+                        <div className="modal-footer"><button onClick={() => setShowDescription(false)} className="web3-button">Chiudi</button></div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLocationFilter, statusFilter, setStatusFilter }: any) => {
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsToShow, setItemsToShow] = useState(10);
+    const MAX_PER_PAGE = 30;
+    const totalPages = Math.max(1, Math.ceil(batches.length / MAX_PER_PAGE));
+    const startIndex = (currentPage - 1) * MAX_PER_PAGE;
+    const itemsOnCurrentPage = batches.slice(startIndex, startIndex + MAX_PER_PAGE);
+    const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow);
+    useEffect(() => {
+        setCurrentPage(1);
+        setItemsToShow(10);
+    }, [batches, nameFilter, locationFilter, statusFilter]);
+    const handleLoadMore = () => setItemsToShow(prev => Math.min(prev + 10, MAX_PER_PAGE));
+    const handlePageChange = (page: number) => {
+        if (page < 1 || page > totalPages) return;
+        setCurrentPage(page);
+        setItemsToShow(10);
+    };
+    return (
+        <div className="table-container">
+            <table className="company-table">
+                <thead>
+                    <tr className="desktop-row"><th>ID</th><th>Nome</th><th>Data</th><th>Luogo</th><th>N° Passaggi</th><th>Stato</th><th>Azione</th></tr>
+                    <tr className="filter-row">
+                        <th></th>
+                        <th><input type="text" placeholder="Filtra per nome..." className="filter-input" value={nameFilter} onChange={(e) => setNameFilter(e.target.value)} /></th>
+                        <th></th>
+                        <th><input type="text" placeholder="Filtra per luogo..." className="filter-input" value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} /></th>
+                        <th></th>
+                        <th><select className="filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">Tutti</option><option value="open">Aperto</option><option value="closed">Chiuso</option></select></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>{visibleBatches.length > 0 ? (visibleBatches.map((batch: BatchData, index: number) => <BatchRow key={batch.id} batch={batch} localId={startIndex + index + 1} />)) : (<tr><td colSpan={7} style={{textAlign: 'center', padding: '2rem'}}>Nessuna iscrizione trovata.</td></tr>)}</tbody>
+            </table>
+            <div className="pagination-controls">
+                {itemsToShow < itemsOnCurrentPage.length && (<button onClick={handleLoadMore} className='link-button'>Vedi altri 10...</button>)}
+                <div className="page-selector">{totalPages > 1 && <> <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>&lt;</button> <span> Pagina {currentPage} di {totalPages} </span> <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>&gt;</button></>}</div>
+            </div>
+        </div>
+    );
+};
+const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
+    const companyName = contributorInfo[0] || 'Azienda';
+    const credits = contributorInfo[1].toString();
+    return (
+        <div className="dashboard-header-card">
+            <div className="dashboard-header-info"><h2 className="company-name-header">{companyName}</h2><div className="company-status-container"><div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div><div className="status-item"><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div></div></div>
+            <div className="header-actions"><button className="web3-button large" onClick={onNewInscriptionClick}>Nuova Iscrizione</button></div>
+        </div>
+    );
+};
 const getInitialFormData = () => ({ name: "", description: "", date: "", location: "" });
-const truncateText = (text: string, maxLength: number) => { /* ... codice completo ... */ };
+const truncateText = (text: string, maxLength: number) => { if (!text) return text; return text.length > maxLength ? text.substring(0, maxLength) + "..." : text; };
 
-// --- COMPONENTE PRINCIPALE ---
 export default function AziendaPage() {
     const account = useActiveAccount();
     const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo, isError } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
@@ -118,7 +199,6 @@ export default function AziendaPage() {
         
         setLoadingMessage('Transazione in corso, attendi la conferma...');
         const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string,string,string,string,string)", params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] });
-        
         sendAndConfirmTransaction(transaction, { 
             onSuccess: async (txResultData) => {
                 setLoadingMessage('Sincronizzo con il database...');
