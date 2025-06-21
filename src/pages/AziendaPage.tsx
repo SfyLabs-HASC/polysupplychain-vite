@@ -11,7 +11,6 @@ import { parseEventLogs } from 'viem';
 
 // --- CONFIGURAZIONE FINALE PER POLYGON CON SDK v5 ---
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
-
 const contract = getContract({
   client,
   chain: polygon,
@@ -64,6 +63,12 @@ const AziendaPageStyles = () => (
 );
 const RegistrationForm = () => ( <div className="card"><h3>Benvenuto su Easy Chain!</h3><p>Il tuo account non è ancora attivo. Compila il form di registrazione per inviare una richiesta di attivazione.</p></div> );
 interface BatchData { id: string; batchId: bigint; name: string; description: string; date: string; location: string; isClosed: boolean; }
+const RefreshIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+        <path fillRule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+    </svg>
+);
 const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
     const [showDescription, setShowDescription] = useState(false);
     const { data: stepCount } = useReadContract({ contract, abi, method: "function getBatchStepCount(uint256 _batchId) view returns (uint256)", params: [batch.batchId] });
@@ -140,12 +145,41 @@ const BatchTable = ({ batches, nameFilter, setNameFilter, locationFilter, setLoc
         </div>
     );
 };
-const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contributorInfo: readonly [string, bigint, boolean], onNewInscriptionClick: () => void }) => {
+const DashboardHeader = ({ contributorInfo, onNewInscriptionClick, onRefreshClick, isRefreshDisabled, refreshTooltip }: { 
+    contributorInfo: readonly [string, bigint, boolean], 
+    onNewInscriptionClick: () => void,
+    onRefreshClick: () => void,
+    isRefreshDisabled: boolean,
+    refreshTooltip: string
+}) => {
     const companyName = contributorInfo[0] || 'Azienda';
     const credits = contributorInfo[1].toString();
     return (
         <div className="dashboard-header-card">
-            <div className="dashboard-header-info"><h2 className="company-name-header">{companyName}</h2><div className="company-status-container"><div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div><div className="status-item"><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div></div></div>
+            <div className="dashboard-header-info">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <h2 className="company-name-header">{companyName}</h2>
+                    <button 
+                        onClick={onRefreshClick} 
+                        disabled={isRefreshDisabled}
+                        title={refreshTooltip}
+                        className="web3-button" 
+                        style={{ 
+                            padding: '0.5rem', 
+                            backgroundColor: isRefreshDisabled ? '#495057' : '#6c757d',
+                            cursor: isRefreshDisabled ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '40px',
+                            height: '40px'
+                        }}
+                    >
+                        <RefreshIcon />
+                    </button>
+                </div>
+                <div className="company-status-container"><div className="status-item"><span>Crediti Rimanenti: <strong>{credits}</strong></span></div><div className="status-item"><span>Stato: <strong>ATTIVO</strong></span><span className="status-icon">✅</span></div></div>
+            </div>
             <div className="header-actions"><button className="web3-button large" onClick={onNewInscriptionClick}>Nuova Iscrizione</button></div>
         </div>
     );
@@ -162,7 +196,7 @@ export default function AziendaPage() {
     const [modal, setModal] = useState<'init' | null>(null);
     const [formData, setFormData] = useState(getInitialFormData());
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [txResult, setTxResult] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
+    const [txResult, setTxResult] = useState<{ status: 'success' | 'error' | 'loading'; message: string } | null>(null);
     const [allBatches, setAllBatches] = useState<BatchData[]>([]);
     const [filteredBatches, setFilteredBatches] = useState<BatchData[]>([]);
     const [isLoadingBatches, setIsLoadingBatches] = useState(true);
@@ -171,6 +205,9 @@ export default function AziendaPage() {
     const [nameFilter, setNameFilter] = useState('');
     const [locationFilter, setLocationFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [isRefreshDisabled, setIsRefreshDisabled] = useState(true);
+    const [refreshTooltip, setRefreshTooltip] = useState("Sincronizza con la blockchain");
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const fetchAllBatches = async () => {
         if (!account?.address) return;
@@ -184,6 +221,30 @@ export default function AziendaPage() {
         } catch (error) { console.error("Errore nel caricare i lotti da Firebase:", error); setAllBatches([]);
         } finally { setIsLoadingBatches(false); }
     };
+
+    useEffect(() => {
+        if (!account) return;
+        const storageKey = `lastRefreshTimestamp_${account.address}`;
+        const lastRefresh = localStorage.getItem(storageKey);
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (lastRefresh) {
+            const lastRefreshTime = parseInt(lastRefresh, 10);
+            const timePassed = Date.now() - lastRefreshTime;
+            if (timePassed < twentyFourHours) {
+                setIsRefreshDisabled(true);
+                const remainingTime = twentyFourHours - timePassed;
+                const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+                const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+                setRefreshTooltip(`Puoi riprovare tra circa ${hours} ore e ${minutes} minuti.`);
+            } else {
+                setIsRefreshDisabled(false);
+                setRefreshTooltip("Sincronizza con la blockchain per recuperare iscrizioni passate.");
+            }
+        } else {
+            setIsRefreshDisabled(false);
+            setRefreshTooltip("Sincronizza con la blockchain per recuperare iscrizioni passate.");
+        }
+    }, [account]);
 
     useEffect(() => {
         if (account?.address) {
@@ -206,6 +267,49 @@ export default function AziendaPage() {
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setFormData(prev => ({...prev, [e.target.name]: e.target.value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { setSelectedFile(e.target.files?.[0] || null); };
     
+    const forceRefreshFromChain = async () => {
+        if (!account?.address) return;
+        setIsSyncing(true);
+        setTxResult({ status: 'loading', message: 'Leggendo la blockchain...' });
+        try {
+            const onChainIds = await readContract({ contract, abi, method: "function getBatchesByContributor(address) view returns (uint256[])", params: [account.address] }) as bigint[];
+            const firebaseIds = new Set(allBatches.map(b => b.batchId.toString()));
+            const missingIds = onChainIds.filter(id => !firebaseIds.has(id.toString()));
+            if (missingIds.length === 0) {
+                setTxResult({ status: 'success', message: 'Database già sincronizzato. Nessuna nuova iscrizione trovata.' });
+                return;
+            }
+            setTxResult({ status: 'loading', message: `Trovate ${missingIds.length} nuove iscrizioni. Sincronizzazione in corso...` });
+            for (const batchId of missingIds) {
+                const info = await readContract({ contract, abi, method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)", params: [batchId] });
+                await fetch('/api/add-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        batchId: batchId.toString(),
+                        ownerAddress: account.address,
+                        name: info[3], description: info[4], date: info[5], location: info[6], imageIpfsHash: info[7]
+                    })
+                });
+            }
+            await fetchAllBatches();
+            setTxResult({ status: 'success', message: `Sincronizzazione completata! Aggiunte ${missingIds.length} iscrizioni.` });
+        } catch (error: any) {
+            setTxResult({ status: 'error', message: `Errore durante la sincronizzazione: ${error.message}` });
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+    
+    const handleRefreshClick = () => {
+        if (isRefreshDisabled || !account) return;
+        forceRefreshFromChain();
+        const storageKey = `lastRefreshTimestamp_${account.address}`;
+        localStorage.setItem(storageKey, Date.now().toString());
+        setIsRefreshDisabled(true);
+        setRefreshTooltip("Puoi riprovare tra circa 24 ore.");
+    };
+
     const handleInitializeBatch = async () => {
         if (!formData.name.trim()) { setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' }); return; }
         setLoadingMessage('Preparazione transazione...');
@@ -284,7 +388,13 @@ export default function AziendaPage() {
         if (!contributorData[2]) return <RegistrationForm />; 
         return (
             <> 
-                <DashboardHeader contributorInfo={contributorData} onNewInscriptionClick={openModal} /> 
+                <DashboardHeader 
+                    contributorInfo={contributorData} 
+                    onNewInscriptionClick={openModal}
+                    onRefreshClick={handleRefreshClick}
+                    isRefreshDisabled={isRefreshDisabled || isSyncing}
+                    refreshTooltip={refreshTooltip}
+                /> 
                 {isLoadingBatches ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento iscrizioni...</p> : <BatchTable batches={filteredBatches} nameFilter={nameFilter} setNameFilter={setNameFilter} locationFilter={locationFilter} setLocationFilter={setLocationFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter}/>} 
             </>
         ); 
@@ -327,8 +437,10 @@ export default function AziendaPage() {
                     </div>
                 </div> 
             )}
+            
             {isProcessing && <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />}
             {txResult && <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => { if (txResult.status === 'success') handleCloseModal(); setTxResult(null); }} />}
+            {isSyncing && <TransactionStatusModal status="loading" message={txResult?.message || "Sincronizzazione..."} onClose={() => {}} />}
         </div>
     );
 }
