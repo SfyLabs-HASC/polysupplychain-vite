@@ -7,19 +7,16 @@ import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css';
 import TransactionStatusModal from '../components/TransactionStatusModal';
-
-// MODIFICA FINALE BUILD: Importiamo 'parseEventLogs' direttamente da 'viem'
 import { parseEventLogs } from 'viem';
 
-
-// --- CONFIGURAZIONE PER POLYGON CON SDK v5 ---
+// --- CONFIGURAZIONE FINALE PER POLYGON CON SDK v5 ---
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
+
 const contract = getContract({
   client,
   chain: polygon,
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
-
 
 // --- COMPONENTI UI (COMPLETI E NON SEMPLIFICATI) ---
 const AziendaPageStyles = () => (
@@ -156,6 +153,7 @@ const DashboardHeader = ({ contributorInfo, onNewInscriptionClick }: { contribut
 const getInitialFormData = () => ({ name: "", description: "", date: "", location: "" });
 const truncateText = (text: string, maxLength: number) => { if (!text) return text; return text.length > maxLength ? text.substring(0, maxLength) + "..." : text; };
 
+// --- COMPONENTE PRINCIPALE ---
 export default function AziendaPage() {
     const account = useActiveAccount();
     const { data: contributorData, isLoading: isStatusLoading, refetch: refetchContributorInfo, isError } = useReadContract({ contract, method: "function getContributorInfo(address) view returns (string, uint256, bool)", params: account ? [account.address] : undefined, queryOptions: { enabled: !!account } });
@@ -174,7 +172,18 @@ export default function AziendaPage() {
     const [locationFilter, setLocationFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
-    const fetchAllBatches = async () => { /* ... codice completo ... */ };
+    const fetchAllBatches = async () => {
+        if (!account?.address) return;
+        setIsLoadingBatches(true);
+        try {
+            const response = await fetch(`/api/get-batches?userAddress=${account.address}`);
+            if (!response.ok) { throw new Error('Errore nel caricare i dati dal database'); }
+            const data = await response.json();
+            const formattedData = data.map((batch: any) => ({ ...batch, batchId: BigInt(batch.batchId) }));
+            setAllBatches(formattedData);
+        } catch (error) { console.error("Errore nel caricare i lotti da Firebase:", error); setAllBatches([]);
+        } finally { setIsLoadingBatches(false); }
+    };
 
     useEffect(() => {
         if (account?.address) {
@@ -186,17 +195,33 @@ export default function AziendaPage() {
         prevAccountRef.current = account?.address;
     }, [account]);
 
-    useEffect(() => { /* ... codice completo ... */ }, [nameFilter, locationFilter, statusFilter, allBatches]);
+    useEffect(() => {
+        let tempBatches = [...allBatches];
+        if (nameFilter) { tempBatches = tempBatches.filter(b => b.name.toLowerCase().includes(nameFilter.toLowerCase())); }
+        if (locationFilter) { tempBatches = tempBatches.filter(b => b.location.toLowerCase().includes(locationFilter.toLowerCase())); }
+        if (statusFilter !== 'all') { const isOpen = statusFilter === 'open'; tempBatches = tempBatches.filter(b => !b.isClosed === isOpen); }
+        setFilteredBatches(tempBatches);
+    }, [nameFilter, locationFilter, statusFilter, allBatches]);
     
-    const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { /* ... codice completo ... */ };
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { /* ... codice completo ... */ };
+    const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setFormData(prev => ({...prev, [e.target.name]: e.target.value})); };
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { setSelectedFile(e.target.files?.[0] || null); };
     
     const handleInitializeBatch = async () => {
         if (!formData.name.trim()) { setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' }); return; }
         setLoadingMessage('Preparazione transazione...');
         let imageIpfsHash = "N/A";
-        if (selectedFile) { /* ... logica di upload file ... */ }
-        
+        if (selectedFile) {
+            const MAX_SIZE_MB = 5; const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024; const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
+            if (selectedFile.size > MAX_SIZE_BYTES) { setTxResult({ status: 'error', message: `File troppo grande. Limite: ${MAX_SIZE_MB} MB.` }); return; }
+            if (!ALLOWED_FORMATS.includes(selectedFile.type)) { setTxResult({ status: 'error', message: 'Formato immagine non supportato.' }); return; }
+            setLoadingMessage('Caricamento Immagine...');
+            try {
+                const body = new FormData(); body.append('file', selectedFile); body.append('companyName', contributorData?.[0] || 'AziendaGenerica');
+                const response = await fetch('/api/upload', { method: 'POST', body });
+                if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.details || 'Errore dal server di upload.'); }
+                const { cid } = await response.json(); if (!cid) throw new Error("CID non ricevuto dall'API di upload."); imageIpfsHash = cid;
+            } catch (error: any) { setTxResult({ status: 'error', message: `Errore caricamento: ${error.message}` }); setLoadingMessage(''); return; }
+        }
         setLoadingMessage('Transazione in corso, attendi la conferma...');
         const transaction = prepareContractCall({ contract, abi, method: "function initializeBatch(string,string,string,string,string)", params: [formData.name, formData.description, formData.date, formData.location, imageIpfsHash] });
         sendAndConfirmTransaction(transaction, { 
@@ -233,15 +258,42 @@ export default function AziendaPage() {
         });
     };
     
-    const openModal = () => { /* ... codice completo ... */ };
-    const handleCloseModal = () => { /* ... codice completo ... */ };
-    const handleNextStep = () => { /* ... codice completo ... */ };
-    const handlePrevStep = () => { /* ... codice completo ... */ };
+    const openModal = () => { setFormData(getInitialFormData()); setSelectedFile(null); setCurrentStep(1); setTxResult(null); setModal('init'); };
+    const handleCloseModal = () => setModal(null);
+    const handleNextStep = () => { if (currentStep === 1 && !formData.name.trim()) { alert("Il campo 'Nome Iscrizione' è obbligatorio."); return; } if (currentStep < 6) setCurrentStep(prev => prev + 1); };
+    const handlePrevStep = () => { if (currentStep > 1) setCurrentStep(prev => prev - 1); };
     
-    if (!account) { /* ... JSX per il login ... */ }
+    if (!account) {
+        return (
+            <div className='login-container'>
+                <AziendaPageStyles />
+                <ConnectButton
+                    client={client}
+                    chain={polygon}
+                    accountAbstraction={{ chain: polygon, sponsorGas: true }}
+                    wallets={[inAppWallet()]}
+                    connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }}
+                />
+            </div>
+        );
+    }
     
-    const renderDashboardContent = () => { /* ... codice completo ... */ };
+    const renderDashboardContent = () => { 
+        if (isStatusLoading) return <p style={{textAlign: 'center', marginTop: '4rem'}}>Verifica stato account...</p>; 
+        if (isError || !contributorData) return <p style={{textAlign: 'center', marginTop: '4rem', color: 'red'}}>Errore nel recuperare i dati dell'account. Riprova.</p>
+        if (!contributorData[2]) return <RegistrationForm />; 
+        return (
+            <> 
+                <DashboardHeader contributorInfo={contributorData} onNewInscriptionClick={openModal} /> 
+                {isLoadingBatches ? <p style={{textAlign: 'center', marginTop: '2rem'}}>Caricamento iscrizioni...</p> : <BatchTable batches={filteredBatches} nameFilter={nameFilter} setNameFilter={setNameFilter} locationFilter={locationFilter} setLocationFilter={setLocationFilter} statusFilter={statusFilter} setStatusFilter={setStatusFilter}/>} 
+            </>
+        ); 
+    };
     
+    const isProcessing = loadingMessage !== '' || isPending;
+    const today = new Date().toISOString().split('T')[0];
+    const helpTextStyle = { backgroundColor: '#343a40', border: '1px solid #495057', borderRadius: '8px', padding: '16px', marginTop: '16px', fontSize: '0.9rem', color: '#f8f9fa' };
+
     return (
         <div className="app-container-full">
             <AziendaPageStyles />
@@ -257,14 +309,25 @@ export default function AziendaPage() {
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header"><h2>Nuova Iscrizione ({currentStep}/6)</h2></div>
                         <div className="modal-body" style={{ minHeight: '350px' }}>
-                           {/* ... JSX completo per tutti gli step del modale ... */}
+                            {currentStep === 1 && ( <div> <div className="form-group"><label>Nome Iscrizione <span style={{color: 'red', fontWeight:'bold'}}>* Obbligatorio</span></label><input type="text" name="name" value={formData.name} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.name.length} / 100</small></div> <div style={helpTextStyle}><p><strong>ℹ️ Come scegliere il Nome Iscrizione</strong></p><p>Il Nome Iscrizione è un'etichetta descrittiva che ti aiuta a identificare in modo chiaro ciò che stai registrando on-chain. Ad esempio:</p><ul style={{textAlign: 'left', paddingLeft: '20px'}}><li>Il nome di un prodotto o varietà: <em>Pomodori San Marzano 2025</em></li><li>Il numero di lotto: <em>Lotto LT1025 – Olio EVO 3L</em></li><li>Il nome di un contratto: <em>Contratto fornitura COOP – Aprile 2025</em></li><li>Una certificazione o audit: <em>Certificazione Bio ICEA 2025</em></li><li>Un riferimento amministrativo: <em>Ordine n.778 – Cliente NordItalia</em></li></ul><p style={{marginTop: '1rem'}}><strong>📌 Consiglio:</strong> scegli un nome breve ma significativo, che ti aiuti a ritrovare facilmente l’iscrizione anche dopo mesi o anni.</p></div> </div> )}
+                            {currentStep === 2 && ( <div> <div className="form-group"><label>Descrizione <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><textarea name="description" value={formData.description} onChange={handleModalInputChange} className="form-input" rows={4} maxLength={500}></textarea><small className="char-counter">{formData.description.length} / 500</small></div> <div style={helpTextStyle}><p>Inserisci una descrizione del prodotto, lotto, contratto o altro elemento principale. Fornisci tutte le informazioni essenziali per identificarlo chiaramente nella filiera o nel contesto dell’iscrizione.</p></div> </div> )}
+                            {currentStep === 3 && ( <div> <div className="form-group"><label>Luogo <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="text" name="location" value={formData.location} onChange={handleModalInputChange} className="form-input" maxLength={100} /><small className="char-counter">{formData.location.length} / 100</small></div> <div style={helpTextStyle}><p>Inserisci il luogo di origine o di produzione del prodotto o lotto. Può essere una città, una regione, un'azienda agricola o uno stabilimento specifico per identificare con precisione dove è stato realizzato.</p></div> </div> )}
+                            {currentStep === 4 && ( <div> <div className="form-group"><label>Data <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="date" name="date" value={formData.date} onChange={handleModalInputChange} className="form-input" max={today} /></div> <div style={helpTextStyle}><p>Inserisci una data, puoi utilizzare il giorno attuale o una data precedente alla conferma di questa Iscrizione.</p></div> </div> )}
+                            {currentStep === 5 && ( <div> <div className="form-group"><label>Immagine <span style={{color: '#6c757d'}}>Non obbligatorio</span></label><input type="file" name="image" onChange={handleFileChange} className="form-input" accept="image/png, image/jpeg, image/webp"/><small style={{marginTop: '4px'}}>Formati: PNG, JPG, WEBP. Max: 5 MB.</small>{selectedFile && <p className="file-name-preview">File: {selectedFile.name}</p>}</div> <div style={helpTextStyle}><p>Carica un’immagine rappresentativa del prodotto, lotto, contratto, etc. Rispetta i formati e i limiti di peso.</p><p style={{marginTop: '10px'}}><strong>Consiglio:</strong> Per una visualizzazione ottimale, usa un'immagine quadrata (formato 1:1).</p></div> </div> )}
+                            {currentStep === 6 && ( <div> <h4>Riepilogo Dati</h4> <div className="recap-summary"> <p><strong>Nome:</strong> {truncateText(formData.name, 40) || 'Non specificato'}</p> <p><strong>Descrizione:</strong> {truncateText(formData.description, 60) || 'Non specificata'}</p> <p><strong>Luogo:</strong> {truncateText(formData.location, 40) || 'Non specificato'}</p> <p><strong>Data:</strong> {formData.date ? formData.date.split('-').reverse().join('/') : 'Non specificata'}</p> <p><strong>Immagine:</strong> {selectedFile ? truncateText(selectedFile.name, 40) : 'Nessuna'}</p> </div> <p>Vuoi confermare e registrare questi dati sulla blockchain?</p> </div> )}
                         </div>
                         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
-                           {/* ... JSX completo per i bottoni del modale ... */}
+                            <div>{currentStep > 1 && <button onClick={handlePrevStep} className="web3-button secondary" disabled={isProcessing}>Indietro</button>}</div>
+                            <div>
+                                <button onClick={handleCloseModal} className="web3-button secondary" disabled={isProcessing}>Chiudi</button>
+                                {currentStep < 6 && <button onClick={handleNextStep} className="web3-button">Avanti</button>}
+                                {currentStep === 6 && <button onClick={handleInitializeBatch} disabled={isProcessing} className="web3-button">{isProcessing ? "Conferma..." : "Conferma e Registra"}</button>}
+                            </div>
                         </div>
                     </div>
                 </div> 
             )}
+            {isProcessing && <TransactionStatusModal status={'loading'} message={loadingMessage} onClose={() => {}} />}
             {txResult && <TransactionStatusModal status={txResult.status} message={txResult.message} onClose={() => { if (txResult.status === 'success') handleCloseModal(); setTxResult(null); }} />}
         </div>
     );
