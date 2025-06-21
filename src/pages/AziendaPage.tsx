@@ -8,7 +8,7 @@ import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css';
 import TransactionStatusModal from '../components/TransactionStatusModal';
 
-// --- 1. CONFIGURAZIONE UNIFICATA E STANDARD ---
+// --- 1.. CONFIGURAZIONE UNIFICATA E STANDARD ---
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
 
 // Si usa UNA SOLA definizione di chain, lasciando che Thirdweb gestisca l'RPC.
