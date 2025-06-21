@@ -7,8 +7,8 @@ import { inAppWallet } from 'thirdweb/wallets';
 import { supplyChainABI as abi } from '../abi/contractABI';
 import '../App.css';
 import TransactionStatusModal from '../components/TransactionStatusModal';
-// Import necessario per leggere gli eventi dalla transazione
-import { getEvents } from 'thirdweb/extensions/ethers';
+import { getTransactionReceipt } from 'thirdweb/transaction';
+import { parseEventLogs } from 'thirdweb/utils';
 
 // --- CONFIGURAZIONE PER POLYGON CON SDK v5 ---
 const client = createThirdwebClient({ clientId: "e40dfd747fabedf48c5837fb79caf2eb" });
@@ -181,7 +181,7 @@ export default function AziendaPage() {
     const [locationFilter, setLocationFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
-    // MODIFICATA: Ora legge da Firebase tramite la nostra API
+    // FUNZIONE MODIFICATA PER LEGGERE DA FIREBASE
     const fetchAllBatches = async () => {
         if (!account?.address) return;
         setIsLoadingBatches(true);
@@ -191,7 +191,6 @@ export default function AziendaPage() {
                 throw new Error('Errore nel caricare i dati dal database');
             }
             const data = await response.json();
-            // Ricostruiamo i BigInt che vengono persi nella trasmissione JSON
             const formattedData = data.map((batch: any) => ({
                 ...batch,
                 batchId: BigInt(batch.batchId)
@@ -205,7 +204,7 @@ export default function AziendaPage() {
         }
     };
 
-    // FIX INFINITE LOOP: Questa logica è corretta e non causa loop
+    // LOGICA CORRETTA PER EVITARE L'INFINITE LOOP
     useEffect(() => {
         if (account?.address) {
             refetchContributorInfo();
@@ -227,13 +226,22 @@ export default function AziendaPage() {
     const handleModalInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setFormData(prev => ({...prev, [e.target.name]: e.target.value})); };
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { setSelectedFile(e.target.files?.[0] || null); };
     
-    // MODIFICATA: Ora salva su Firebase dopo il successo on-chain
+    // FUNZIONE MODIFICATA PER SALVARE SU FIREBASE DOPO LA SCRITTURA ON-CHAIN
     const handleInitializeBatch = async () => {
         if (!formData.name.trim()) { setTxResult({ status: 'error', message: 'Il campo Nome è obbligatorio.' }); return; }
         setLoadingMessage('Preparazione transazione...');
         let imageIpfsHash = "N/A";
         if (selectedFile) {
-            // ... logica di upload
+            const MAX_SIZE_MB = 5; const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024; const ALLOWED_FORMATS = ['image/png', 'image/jpeg', 'image/webp'];
+            if (selectedFile.size > MAX_SIZE_BYTES) { setTxResult({ status: 'error', message: `File troppo grande. Limite: ${MAX_SIZE_MB} MB.` }); return; }
+            if (!ALLOWED_FORMATS.includes(selectedFile.type)) { setTxResult({ status: 'error', message: 'Formato immagine non supportato.' }); return; }
+            setLoadingMessage('Caricamento Immagine...');
+            try {
+                const body = new FormData(); body.append('file', selectedFile); body.append('companyName', contributorData?.[0] || 'AziendaGenerica');
+                const response = await fetch('/api/upload', { method: 'POST', body });
+                if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.details || 'Errore dal server di upload.'); }
+                const { cid } = await response.json(); if (!cid) throw new Error("CID non ricevuto dall'API di upload."); imageIpfsHash = cid;
+            } catch (error: any) { setTxResult({ status: 'error', message: `Errore caricamento: ${error.message}` }); setLoadingMessage(''); return; }
         }
         
         setLoadingMessage('Transazione in corso...');
@@ -243,7 +251,8 @@ export default function AziendaPage() {
             onSuccess: async (txResultData) => {
                 setLoadingMessage('Transazione confermata! Sincronizzo con il database...');
                 try {
-                    const events = await getEvents({ contract, transactionHash: txResultData.transactionHash, event: 'event BatchInitialized(uint256 indexed batchId, address indexed contributor)' });
+                    const receipt = await getTransactionReceipt({ client, chain: polygon, transactionHash: txResultData.transactionHash });
+                    const events = parseEventLogs({ abi, logs: receipt.logs, eventName: "BatchInitialized" });
                     
                     if (events.length === 0 || !events[0].args.batchId) {
                         throw new Error("Impossibile trovare l'ID del nuovo batch nella transazione.");
@@ -264,9 +273,7 @@ export default function AziendaPage() {
                         })
                     });
 
-                    if (!response.ok) {
-                        throw new Error("Errore durante il salvataggio dei dati nel database.");
-                    }
+                    if (!response.ok) throw new Error("Errore durante il salvataggio dei dati nel database.");
                     
                     setTxResult({ status: 'success', message: 'Iscrizione creata e sincronizzata con successo!' });
                     await Promise.all([fetchAllBatches(), refetchContributorInfo()]);
@@ -368,5 +375,3 @@ export default function AziendaPage() {
         </div>
     );
 }
-
-buildato
