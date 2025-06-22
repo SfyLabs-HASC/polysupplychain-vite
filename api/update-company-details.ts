@@ -2,7 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// Inizializza Firebase Admin solo se non è già stato fatto
 if (!getApps().length) {
   try {
     initializeApp({
@@ -10,7 +9,6 @@ if (!getApps().length) {
     });
   } catch (error: any) {
     console.error("Firebase Admin initialization error:", error.message);
-    // Non terminare qui, potrebbe essere già inizializzato in un altro contesto
   }
 }
 
@@ -30,12 +28,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const companyRef = db.collection('companies').doc(ownerAddress);
 
-    // Usiamo { merge: true } per aggiornare i campi senza cancellare quelli esistenti (come le sotto-collezioni)
     await companyRef.set({
         walletAddress: ownerAddress,
         companyName,
         credits: credits !== undefined ? credits : 0,
-        status: status ? 'active' : 'pending' // Converte il booleano on-chain in uno stato testuale
+        status: status ? 'active' : 'pending'
     }, { merge: true });
 
     res.status(200).json({ message: 'Dettagli azienda aggiornati con successo.' });
