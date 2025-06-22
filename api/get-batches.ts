@@ -1,5 +1,3 @@
-// FILE: /api/get-batches.ts
-
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -24,9 +22,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ message: 'Indirizzo utente non fornito.' });
     }
 
-    const batchesRef = db.collection('batches');
-    // Eseguiamo una query per trovare i documenti che appartengono all'utente
-    const snapshot = await batchesRef.where('ownerAddress', '==', userAddress).orderBy('createdAt', 'desc').get();
+    // NUOVA LOGICA: La query punta direttamente alla sotto-collezione dell'utente.
+    // Questo è molto più veloce e non richiede indici compositi.
+    const batchesRef = db
+      .collection('companies')
+      .doc(userAddress)
+      .collection('batches')
+      .orderBy('createdAt', 'desc');
+      
+    const snapshot = await batchesRef.get();
 
     if (snapshot.empty) {
       return res.status(200).json([]);
@@ -35,9 +39,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const batches: any[] = [];
     snapshot.forEach(doc => {
       batches.push({
-        // L'ID del documento è il nostro batchId on-chain
         id: doc.id,
-        batchId: BigInt(doc.id), // Lo riconvertiamo in BigInt per coerenza con il frontend
+        batchId: BigInt(doc.id),
         ...doc.data()
       });
     });

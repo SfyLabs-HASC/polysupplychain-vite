@@ -17,6 +17,7 @@ const contract = getContract({
   address: "0x4a866C3A071816E3186e18cbE99a3339f4571302"
 });
 
+
 // --- COMPONENTI UI (COMPLETI E NON SEMPLIFICATI) ---
 const AziendaPageStyles = () => (
   <style>{`
@@ -346,7 +347,8 @@ export default function AziendaPage() {
                             description: formData.description,
                             date: formData.date,
                             location: formData.location,
-                            imageIpfsHash: imageIpfsHash
+                            imageIpfsHash: imageIpfsHash,
+                            companyName: contributorData?.[0] || "Azienda Generica" 
                         })
                     });
                     if (!response.ok) throw new Error("Errore salvataggio su DB.");
@@ -374,9 +376,18 @@ export default function AziendaPage() {
                 <ConnectButton
                     client={client}
                     chain={polygon}
-                    accountAbstraction={{ chain: polygon, sponsorGas: true }}
-                    wallets={[inAppWallet()]}
-                    connectButton={{ label: "Connettiti / Log In", style: { fontSize: '1.2rem', padding: '1rem 2rem' } }}
+                    connectModal={{
+                        size: "wide",
+                        accountAbstraction: {
+                            chain: polygon,
+                            sponsorGas: true,
+                        },
+                        wallets: [inAppWallet()],
+                    }}
+                    connectButton={{
+                        label: "Connettiti / Log In",
+                        style: { fontSize: '1.2rem', padding: '1rem 2rem' }
+                    }}
                 />
             </div>
         );
