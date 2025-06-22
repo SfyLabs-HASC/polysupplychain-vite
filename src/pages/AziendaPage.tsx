@@ -459,7 +459,7 @@ export default function AziendaPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // NUOVA LOGICA: Carica le iscrizioni dal database
+  // NUOVA LOGICA: Funzione che carica le iscrizioni dal database
   const fetchBatchesFromDb = async () => {
     if (!account?.address) return;
     setIsLoadingBatches(true);
@@ -491,12 +491,13 @@ export default function AziendaPage() {
     }
   };
   
-  // NUOVA LOGICA: Al login, legge i dati dell'azienda on-chain E POI carica le iscrizioni dal DB
+  // NUOVA LOGICA: Al login, legge i dati dell'azienda on-chain, li sincronizza su DB, e POI carica le iscrizioni
   useEffect(() => {
     const handleLoginAndDataFetch = async () => {
       if (account?.address && contributorData) {
         const [onChainName, onChainCredits, onChainStatus] = contributorData;
         try {
+          // Questo endpoint aggiorna o crea il documento dell'azienda in Firestore
           await fetch("/api/update-company-details", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -511,11 +512,13 @@ export default function AziendaPage() {
           console.error("Sincronizzazione dati azienda fallita:", err);
         }
         
+        // Solo dopo aver aggiornato i dati azienda, carichiamo le iscrizioni
         fetchBatchesFromDb();
       }
     };
 
     if (account?.address && prevAccountRef.current !== account.address) {
+        // Forza il refetch quando l'account cambia per ottenere dati freschi
         refetchContributorInfo();
     }
     handleLoginAndDataFetch();
@@ -555,6 +558,7 @@ export default function AziendaPage() {
     setSelectedFile(e.target.files?.[0] || null);
   };
 
+  // NUOVA LOGICA: La funzione di refresh legge da on-chain e aggiorna il DB
   const syncOnChainDataToDb = async () => {
     if (!account?.address) {
       alert("Connetti il wallet per sincronizzare.");
