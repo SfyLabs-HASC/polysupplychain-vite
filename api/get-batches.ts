@@ -3,9 +3,13 @@ import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 if (!getApps().length) {
-  initializeApp({
-    credential: cert(JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS!))
-  });
+  try {
+    initializeApp({
+      credential: cert(JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS!))
+    });
+  } catch (error: any) {
+    console.error("Firebase Admin initialization error:", error.message);
+  }
 }
 
 const db = getFirestore();
@@ -38,7 +42,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     snapshot.forEach(doc => {
       batches.push({
         id: doc.id,
-        batchId: BigInt(doc.id).toString(), // invia come stringa per evitare problemi con JSON
         ...doc.data()
       });
     });
