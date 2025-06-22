@@ -19,7 +19,7 @@ import "../App.css";
 import TransactionStatusModal from "../components/TransactionStatusModal";
 import { parseEventLogs } from "viem";
 
-// --- CONFIGURAZIONE PER POLYGON CON SDK v5 ---
+// --- CONFIGURAZIONE FINALE PER POLYGON CON SDK v5 ---
 const client = createThirdwebClient({
   clientId: "e40dfd747fabedf48c5837fb79caf2eb",
 });
@@ -106,7 +106,13 @@ const RefreshIcon = () => (
     <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
   </svg>
 );
-const BatchRow = ({ batch, localId }: { batch: BatchData; localId: number }) => {
+const BatchRow = ({
+  batch,
+  localId,
+}: {
+  batch: BatchData;
+  localId: number;
+}) => {
   const [showDescription, setShowDescription] = useState(false);
   const { data: stepCount } = useReadContract({
     contract,
@@ -453,24 +459,41 @@ export default function AziendaPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const fetchBatchesFromDb = async () => {
+  const fetchAllBatchesOnChain = async () => {
     if (!account?.address) return;
     setIsLoadingBatches(true);
     try {
-      const response = await fetch(
-        `/api/get-batches?userAddress=${account.address}`
-      );
-      if (!response.ok) {
-        throw new Error("Errore nel caricare i dati dal database");
+      const batchIds = (await readContract({
+        contract,
+        abi,
+        method: "function getBatchesByContributor(address) view returns (uint256[])",
+        params: [account.address],
+      })) as bigint[];
+      if (batchIds.length > 0) {
+        const batchDataPromises = batchIds.map((id) =>
+          readContract({
+            contract,
+            abi,
+            method:
+              "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)",
+            params: [id],
+          }).then((info) => ({
+            id: id.toString(),
+            batchId: id,
+            name: info[3],
+            description: info[4],
+            date: info[5],
+            location: info[6],
+            isClosed: info[8],
+          }))
+        );
+        const results = await Promise.all(batchDataPromises);
+        setAllBatches(results.sort((a, b) => Number(b.batchId) - Number(a.batchId)));
+      } else {
+        setAllBatches([]);
       }
-      const data = await response.json();
-      const formattedData = data.map((batch: any) => ({
-        ...batch,
-        batchId: BigInt(batch.batchId),
-      }));
-      setAllBatches(formattedData);
     } catch (error) {
-      console.error("Errore nel caricare i lotti da Firebase:", error);
+      console.error("Errore nel caricare i lotti da blockchain:", error);
       setAllBatches([]);
     } finally {
       setIsLoadingBatches(false);
@@ -480,7 +503,7 @@ export default function AziendaPage() {
   useEffect(() => {
     if (account?.address) {
       refetchContributorInfo();
-      fetchBatchesFromDb();
+      fetchAllBatchesOnChain();
     } else if (!account && prevAccountRef.current) {
       window.location.href = "/";
     }
@@ -520,66 +543,46 @@ export default function AziendaPage() {
       alert("Connetti il wallet per sincronizzare.");
       return;
     }
+    if (allBatches.length === 0) {
+      alert(
+        "Nessun dato da sincronizzare. Le iscrizioni sono già state caricate dalla blockchain."
+      );
+      return;
+    }
     setIsSyncing(true);
     setTxResult({
       status: "loading",
-      message: "Leggendo i dati dalla blockchain...",
+      message: `Sincronizzazione di ${allBatches.length} iscrizioni verso il database...`,
     });
     try {
-      // 1. Legge TUTTI i dati dalla blockchain
-      const onChainIds = (await readContract({
-        contract,
-        abi,
-        method: "function getBatchesByContributor(address) view returns (uint256[])",
-        params: [account.address],
-      })) as bigint[];
-      
-      if (onChainIds.length === 0) {
-        setTxResult({ status: 'success', message: 'Nessuna iscrizione trovata sulla blockchain per questo account.' });
-        return;
-      }
-
-      setTxResult({
-        status: "loading",
-        message: `Trovate ${onChainIds.length} iscrizioni on-chain. Sincronizzazione in corso...`,
-      });
-
-      // 2. Per ogni ID, recupera i dettagli e li salva su Firebase
-      const syncPromises = onChainIds.map(async (batchId) => {
-        const info = await readContract({
-            contract,
-            abi,
-            method: "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)",
-            params: [batchId],
-        });
+      const syncPromises = allBatches.map((batch) => {
+        const batchDataForApi = {
+          batchId: batch.batchId.toString(),
+          ownerAddress: account.address,
+          name: batch.name,
+          description: batch.description,
+          date: batch.date,
+          location: batch.location,
+          imageIpfsHash: "N/A", // L'immagine non è disponibile in questo flusso
+          companyName: contributorData?.[0] || "Azienda Generica",
+        };
         return fetch("/api/add-batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            batchId: batchId.toString(),
-            ownerAddress: account.address,
-            companyName: info[2], // Usiamo il nome on-chain per coerenza
-            name: info[3],
-            description: info[4],
-            date: info[5],
-            location: info[6],
-            imageIpfsHash: info[7],
-          }),
+          body: JSON.stringify(batchDataForApi),
         });
       });
 
       await Promise.all(syncPromises);
 
-      // 3. Alla fine, ricarica i dati dal DB per aggiornare la UI
-      await fetchBatchesFromDb();
       setTxResult({
         status: "success",
-        message: `Sincronizzazione completata! Aggiornate ${onChainIds.length} iscrizioni.`,
+        message: `Sincronizzazione completata con successo!`,
       });
     } catch (error: any) {
       setTxResult({
         status: "error",
-        message: `Errore durante la sincronizzazione: ${error.message}`,
+        message: `Errore durante la sincronizzazione con il database: ${error.message}`,
       });
     } finally {
       setIsSyncing(false);
@@ -679,7 +682,7 @@ export default function AziendaPage() {
             status: "success",
             message: "Iscrizione creata e sincronizzata!",
           });
-          await Promise.all([fetchBatchesFromDb(), refetchContributorInfo()]);
+          await Promise.all([fetchAllBatchesOnChain(), refetchContributorInfo()]);
         } catch (error: any) {
           setTxResult({
             status: "error",
@@ -734,8 +737,8 @@ export default function AziendaPage() {
               chain: polygon,
               sponsorGas: true,
             },
+            wallets: [inAppWallet()],
           }}
-          wallets={[inAppWallet()]}
           connectButton={{
             label: "Connettiti / Log In",
             style: { fontSize: "1.2rem", padding: "1rem 2rem" },
@@ -1120,3 +1123,4 @@ export default function AziendaPage() {
     </div>
   );
 }
+
