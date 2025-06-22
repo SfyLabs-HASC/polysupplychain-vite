@@ -5,7 +5,6 @@ import {
   useActiveAccount,
   useReadContract,
   useSendAndConfirmTransaction,
-  useConnect, // Importiamo l'hook per la connessione manuale
 } from "thirdweb/react";
 import {
   createThirdwebClient,
@@ -14,7 +13,7 @@ import {
   readContract,
 } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { inAppWallet, preauthenticate } from "thirdweb/wallets"; // Importiamo preauthenticate
+import { inAppWallet } from "thirdweb/wallets";
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 import TransactionStatusModal from "../components/TransactionStatusModal";
@@ -443,10 +442,6 @@ export default function AziendaPage() {
   const prevAccountRef = useRef(account?.address);
   const { mutate: sendAndConfirmTransaction, isPending } =
     useSendAndConfirmTransaction();
-  const { connect } = useConnect();
-
-  const [email, setEmail] = useState("");
-  const [isConnecting, setIsConnecting] = useState(false);
   const [modal, setModal] = useState<"init" | null>(null);
   const [formData, setFormData] = useState(getInitialFormData());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -494,7 +489,7 @@ export default function AziendaPage() {
       setIsLoadingBatches(false);
     }
   };
-
+  
   useEffect(() => {
     const handleLoginAndDataFetch = async () => {
       if (account?.address && contributorData) {
@@ -518,7 +513,7 @@ export default function AziendaPage() {
     };
 
     if (account?.address && prevAccountRef.current !== account.address) {
-      refetchContributorInfo();
+        refetchContributorInfo();
     }
     handleLoginAndDataFetch();
     
@@ -527,6 +522,7 @@ export default function AziendaPage() {
     }
     prevAccountRef.current = account?.address;
   }, [account, contributorData]);
+
 
   useEffect(() => {
     let tempBatches = [...allBatches];
@@ -724,62 +720,26 @@ export default function AziendaPage() {
     if (currentStep > 1) setCurrentStep((prev) => prev - 1);
   };
 
-  const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!email) {
-      alert("Per favore, inserisci un'email.");
-      return;
-    }
-    setIsConnecting(true);
-    try {
-      const inAppWalletInst = inAppWallet();
-      await preauthenticate({
-        client,
-        wallet: inAppWalletInst,
-        strategy: "email",
-        email,
-      });
-      await connect({
-        client,
-        wallet: inAppWalletInst,
-        accountAbstraction: {
-          chain: polygon,
-          sponsorGas: true,
-        },
-      });
-    } catch (err: any) {
-      console.error("Login fallito", err);
-      alert(`Login fallito: ${err.message}`);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
   if (!account) {
     return (
       <div className="login-container">
         <AziendaPageStyles />
-        <div className="card" style={{ maxWidth: '400px', margin: 'auto' }}>
-            <h3>Accedi o Registrati</h3>
-            <p>Usa la tua email per accedere al tuo wallet sicuro.</p>
-            <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <input
-                    type="email"
-                    placeholder="tua@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="form-input"
-                    style={{ backgroundColor: '#2c3e50', color: 'white' }}
-                />
-                <button type="submit" className="web3-button" disabled={isConnecting}>
-                    {isConnecting ? "Connessione..." : "Accedi con Email"}
-                </button>
-            </form>
-            <div style={{marginTop: '1rem', color: '#a0a0a0', fontSize: '0.8rem'}}>
-                Verrà creato un wallet sicuro associato a questa email, accessibile da qualsiasi dispositivo.
-            </div>
-        </div>
+        <ConnectButton
+          client={client}
+          chain={polygon}
+          connectModal={{
+            size: "wide",
+            accountAbstraction: {
+              chain: polygon,
+              sponsorGas: true,
+            },
+            wallets: [inAppWallet()],
+          }}
+          connectButton={{
+            label: "Connettiti / Log In",
+            style: { fontSize: "1.2rem", padding: "1rem 2rem" },
+          }}
+        />
       </div>
     );
   }
