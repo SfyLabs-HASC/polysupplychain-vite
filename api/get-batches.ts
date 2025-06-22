@@ -22,8 +22,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ message: 'Indirizzo utente non fornito.' });
     }
 
-    // NUOVA LOGICA: La query punta direttamente alla sotto-collezione dell'utente.
-    // Questo è molto più veloce e non richiede indici compositi.
     const batchesRef = db
       .collection('companies')
       .doc(userAddress)
@@ -40,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     snapshot.forEach(doc => {
       batches.push({
         id: doc.id,
-        batchId: BigInt(doc.id),
+        batchId: BigInt(doc.id).toString(), // invia come stringa per evitare problemi con JSON
         ...doc.data()
       });
     });
