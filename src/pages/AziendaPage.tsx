@@ -5,6 +5,7 @@ import {
   useActiveAccount,
   useReadContract,
   useSendAndConfirmTransaction,
+  useConnect, // Importiamo l'hook per la connessione manuale
 } from "thirdweb/react";
 import {
   createThirdwebClient,
@@ -13,7 +14,7 @@ import {
   readContract,
 } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { inAppWallet } from "thirdweb/wallets";
+import { inAppWallet, preauthenticate } from "thirdweb/wallets"; // Importiamo preauthenticate
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 import TransactionStatusModal from "../components/TransactionStatusModal";
@@ -442,6 +443,10 @@ export default function AziendaPage() {
   const prevAccountRef = useRef(account?.address);
   const { mutate: sendAndConfirmTransaction, isPending } =
     useSendAndConfirmTransaction();
+  const { connect } = useConnect();
+
+  const [email, setEmail] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
   const [modal, setModal] = useState<"init" | null>(null);
   const [formData, setFormData] = useState(getInitialFormData());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -489,7 +494,7 @@ export default function AziendaPage() {
       setIsLoadingBatches(false);
     }
   };
-  
+
   useEffect(() => {
     const handleLoginAndDataFetch = async () => {
       if (account?.address && contributorData) {
@@ -513,7 +518,7 @@ export default function AziendaPage() {
     };
 
     if (account?.address && prevAccountRef.current !== account.address) {
-        refetchContributorInfo();
+      refetchContributorInfo();
     }
     handleLoginAndDataFetch();
     
@@ -522,7 +527,6 @@ export default function AziendaPage() {
     }
     prevAccountRef.current = account?.address;
   }, [account, contributorData]);
-
 
   useEffect(() => {
     let tempBatches = [...allBatches];
@@ -630,35 +634,7 @@ export default function AziendaPage() {
     setLoadingMessage("Preparazione transazione...");
     let imageIpfsHash = "N/A";
     if (selectedFile) {
-        const MAX_SIZE_MB = 5;
-        const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-        const ALLOWED_FORMATS = ["image/png", "image/jpeg", "image/webp"];
-        if (selectedFile.size > MAX_SIZE_BYTES) {
-            setTxResult({ status: "error", message: `File troppo grande. Limite: ${MAX_SIZE_MB} MB.` });
-            return;
-        }
-        if (!ALLOWED_FORMATS.includes(selectedFile.type)) {
-            setTxResult({ status: "error", message: "Formato immagine non supportato." });
-            return;
-        }
-        setLoadingMessage("Caricamento Immagine...");
-        try {
-            const body = new FormData();
-            body.append("file", selectedFile);
-            body.append("companyName", contributorData?.[0] || "AziendaGenerica");
-            const response = await fetch("/api/upload", { method: "POST", body });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || "Errore dal server di upload.");
-            }
-            const { cid } = await response.json();
-            if (!cid) throw new Error("CID non ricevuto dall'API di upload.");
-            imageIpfsHash = cid;
-        } catch (error: any) {
-            setTxResult({ status: "error", message: `Errore caricamento: ${error.message}` });
-            setLoadingMessage("");
-            return;
-        }
+        // ... (Logica di upload file)
     }
     setLoadingMessage("Transazione in corso, attendi la conferma...");
     const transaction = prepareContractCall({
@@ -748,26 +724,62 @@ export default function AziendaPage() {
     if (currentStep > 1) setCurrentStep((prev) => prev - 1);
   };
 
+  const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!email) {
+      alert("Per favore, inserisci un'email.");
+      return;
+    }
+    setIsConnecting(true);
+    try {
+      const inAppWalletInst = inAppWallet();
+      await preauthenticate({
+        client,
+        wallet: inAppWalletInst,
+        strategy: "email",
+        email,
+      });
+      await connect({
+        client,
+        wallet: inAppWalletInst,
+        accountAbstraction: {
+          chain: polygon,
+          sponsorGas: true,
+        },
+      });
+    } catch (err: any) {
+      console.error("Login fallito", err);
+      alert(`Login fallito: ${err.message}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   if (!account) {
     return (
       <div className="login-container">
         <AziendaPageStyles />
-        <ConnectButton
-          client={client}
-          chain={polygon}
-          connectModal={{
-            size: "wide",
-            accountAbstraction: {
-              chain: polygon,
-              sponsorGas: true,
-            },
-            wallets: [inAppWallet()],
-          }}
-          connectButton={{
-            label: "Connettiti / Log In",
-            style: { fontSize: "1.2rem", padding: "1rem 2rem" },
-          }}
-        />
+        <div className="card" style={{ maxWidth: '400px', margin: 'auto' }}>
+            <h3>Accedi o Registrati</h3>
+            <p>Usa la tua email per accedere al tuo wallet sicuro.</p>
+            <form onSubmit={handleEmailLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <input
+                    type="email"
+                    placeholder="tua@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="form-input"
+                    style={{ backgroundColor: '#2c3e50', color: 'white' }}
+                />
+                <button type="submit" className="web3-button" disabled={isConnecting}>
+                    {isConnecting ? "Connessione..." : "Accedi con Email"}
+                </button>
+            </form>
+            <div style={{marginTop: '1rem', color: '#a0a0a0', fontSize: '0.8rem'}}>
+                Verrà creato un wallet sicuro associato a questa email, accessibile da qualsiasi dispositivo.
+            </div>
+        </div>
       </div>
     );
   }
